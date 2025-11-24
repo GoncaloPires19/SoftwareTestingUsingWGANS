@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
-# Importações para Manipulação de Dados (Neste exemplo, apenas simulação)
+# Importações para Manipulação de Dados 
 import pandas as pd
 import numpy as np
 
@@ -29,8 +29,8 @@ LAMBDA_GP = 10        # lambda_gp
 # Implemente aqui o carregamento real dos seus dados pré-processados
 # (e.g., carregar de 'data/processed/dados_processados.pt')
 def get_data_loader(input_dim, batch_size, num_samples=1000):
-    # SIMULAÇÃO: Criação de dados tabulares aleatórios (numéricos e escalonados)
-    # Na implementação real, você carregaria os seus dados de teste reais/preparados aqui.
+    # SIMULAÇÃO: Criação de dados tabulares aleatórios
+    # Na implementação real, os dados serão preparados aqui.
     data = torch.randn(num_samples, input_dim) 
     dataset = TensorDataset(data)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -43,7 +43,7 @@ data_loader = get_data_loader(INPUT_DIM, BATCH_SIZE)
 critic = Critic(INPUT_DIM).to(DEVICE)
 generator = Generator(Z_DIM, INPUT_DIM).to(DEVICE)
 
-# Otimizadores com taxas de aprendizado definidas e betas ajustados
+# Otimizadores com learning rates definidas e betas ajustados
 optimizer_D = optim.Adam(critic.parameters(), lr=LEARNING_RATE, betas=(0.0, 0.9))
 optimizer_G = optim.Adam(generator.parameters(), lr=LEARNING_RATE, betas=(0.0, 0.9))
 
