@@ -1,3 +1,15 @@
+"""
+JUnit Test Dataset Handling
+
+This module provides PyTorch Dataset and DataLoader utilities for loading
+and preprocessing JUnit test data for WGAN-GP training.
+
+Features:
+    - Loads CSV data with automatic NaN/Inf filtering
+    - Normalizes test values to [-1, 1] range for stable GAN training
+    - Provides statistics and feature analysis
+"""
+
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
@@ -5,8 +17,23 @@ import numpy as np
 
 
 class JUnitDataset(Dataset):
-    """Dataset for real JUnit test data"""
+    """
+    PyTorch Dataset for JUnit test data.
+    
+    Loads real JUnit test data from CSV and provides normalized tensors
+    suitable for WGAN-GP training.
+    
+    Attributes:
+        raw_data: Original test data as numpy array
+        normalized_data: [-1, 1] normalized tensors for training
+    """
     def __init__(self, csv_path):
+        """
+        Initialize dataset.
+        
+        Args:
+            csv_path (str): Path to CSV file with test data (no header, columns as test features)
+        """
         df = pd.read_csv(csv_path, header=None)
         
         # Remove rows with NaN or infinite values
@@ -20,7 +47,17 @@ class JUnitDataset(Dataset):
         self.normalized_data = self._normalize_data()
 
     def _normalize_data(self):
-        """Normalize data to [-1, 1] range for better GAN training"""
+        """
+        Normalize data to [-1, 1] range.
+        
+        Normalization formula: x_norm = 2 * (x - x_min) / (x_max - x_min) - 1
+        
+        This range is standard for GAN training as it helps with numerical stability
+        and provides symmetric activation function ranges.
+        
+        Returns:
+            torch.Tensor: Normalized data with any NaN/Inf replaced by zeros
+        """
         data_min = self.data.min(dim=0)[0]
         data_max = self.data.max(dim=0)[0]
         # Avoid division by zero
@@ -35,6 +72,7 @@ class JUnitDataset(Dataset):
         return normalized
 
     def __len__(self):
+        """Return number of samples in dataset."""
         return len(self.data)
 
     def __getitem__(self, idx):
