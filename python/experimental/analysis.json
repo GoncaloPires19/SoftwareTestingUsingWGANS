@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-01-03T12:18:10.960703",
+  "overfitting_analysis": {
+    "final_train_loss": 0.039077852542201676,
+    "final_test_loss": 0.20333312451839447,
+    "generalization_gap": 0.1642552719761928,
+    "train_variance": 0.04624364866188285,
+    "test_variance": 0.0940258637056574,
+    "stability": 0.04624364866188285,
+    "overfitting_risk": "LOW"
+  },
+  "effectiveness_analysis": {
+    "avg_quality": 0.7491373766719769,
+    "max_quality": 0.8386183281401525,
+    "min_quality": 0.6036756791536919,
+    "quality_trend": "improving",
+    "avg_distribution_diff": 0.23356350244954227,
+    "distribution_convergence": "converging"
+  }
+}
