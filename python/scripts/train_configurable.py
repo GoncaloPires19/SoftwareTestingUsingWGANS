@@ -5,6 +5,7 @@ Supports: Juliet, OWASP, Defects4J, EvoSuite, and combinations.
 
 import sys
 from pathlib import Path
+from typing import Dict, Tuple
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -22,7 +23,7 @@ from config import WGANConfig, DatasetMode, MetricType, get_config
 from data_loader import UnifiedDataLoader
 from metrics import MetricsTracker, compute_all_metrics
 from model import Generator, Critic
-from utils import gradient_penalty
+from utils import compute_gradient_penalty
 
 
 logging.basicConfig(level=logging.INFO)
@@ -72,14 +73,11 @@ class WGANTrainer:
         self.generator = Generator(
             z_dim=config.model.z_dim,
             output_dim=config.model.output_dim,
-            hidden_dims=config.model.generator_hidden,
-            batch_norm=config.model.batch_norm_g,
         ).to(self.device)
         
         self.critic = Critic(
             input_dim=config.model.output_dim,
-            hidden_dims=config.model.critic_hidden,
-            batch_norm=config.model.batch_norm_c,
+            output_dim=1,
         ).to(self.device)
         
         # Optimizers
@@ -138,11 +136,12 @@ class WGANTrainer:
                 fake_score = self.critic(fake_data.detach())
                 
                 # Gradient penalty
-                gp = gradient_penalty(
+                gp = compute_gradient_penalty(
                     self.critic,
                     real_data,
                     fake_data.detach(),
                     device=self.device,
+                    batch_size=batch_size,
                     lambda_gp=self.config.training.lambda_gp,
                 )
                 
@@ -219,7 +218,7 @@ class WGANTrainer:
             "val_loss": [],
         }
         
-        # Add metric columns
+        # Add metric columns - initialize empty lists
         for metric_name in self.config.evaluation.metrics:
             history[metric_name.value] = []
         
@@ -234,15 +233,19 @@ class WGANTrainer:
             # Evaluate
             val_loss, metrics = self.evaluate(val_loader, real_data)
             
-            # Track
+            # Track - ensure all metric columns have values
             history["epoch"].append(epoch)
             history["train_d_loss"].append(d_loss)
             history["train_g_loss"].append(g_loss)
             history["val_loss"].append(val_loss)
             
-            for metric_name, value in metrics.items():
-                if metric_name in history:
-                    history[metric_name].append(value)
+            # Ensure all metric columns have values (use 0 if not computed)
+            for metric_name in self.config.evaluation.metrics:
+                metric_key = metric_name.value
+                if metric_key in metrics:
+                    history[metric_key].append(metrics[metric_key])
+                else:
+                    history[metric_key].append(0.0)
             
             self.metrics_tracker.update(metrics)
             

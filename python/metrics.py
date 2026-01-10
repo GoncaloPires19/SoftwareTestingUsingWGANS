@@ -258,7 +258,7 @@ class MetricsTracker:
     
     def to_dataframe(self) -> pd.DataFrame:
         """Convert history to DataFrame"""
-        data = {"epoch": list(range(len(next(iter(self.history.values()))))}
+        data = {"epoch": list(range(len(next(iter(self.history.values())))))}
         data.update(self.history)
         return pd.DataFrame(data)
     

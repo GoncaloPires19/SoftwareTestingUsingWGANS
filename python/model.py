@@ -62,11 +62,12 @@ class Critic(nn.Module):
     
     Args:
         input_dim (int): Dimension of input features (default: 3)
+        output_dim (int): Dimension of output (default: 1, not used but kept for compatibility)
     
     Architecture:
         input_dim -> 512 (LeakyReLU) -> 256 (LeakyReLU) -> 1 (Linear)
     """
-    def __init__(self, input_dim):
+    def __init__(self, input_dim, output_dim=1):
         super(Critic, self).__init__()
         self.input_dim = input_dim
         
