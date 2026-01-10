@@ -21,7 +21,17 @@ class ComparativeAnalysis:
     """Compare real and synthetic test distributions"""
     
     def __init__(self, real_data_path: Path, synthetic_data_path: Path):
-        self.real_data = pd.read_csv(real_data_path)
+        # Read real data (may not have headers)
+        real = pd.read_csv(real_data_path, header=None)
+        if len(real.columns) == 3 and not all(isinstance(x, float) or isinstance(x, int) for x in real.iloc[0]):
+            self.real_data = real.copy()
+            self.real_data.columns = ['methods', 'branches', 'statements']
+        else:
+            # No header, add one
+            self.real_data = real.copy()
+            self.real_data.columns = ['methods', 'branches', 'statements']
+        
+        # Read synthetic data (should have headers)
         self.synthetic_data = pd.read_csv(synthetic_data_path)
     
     def statistical_comparison(self) -> Dict:

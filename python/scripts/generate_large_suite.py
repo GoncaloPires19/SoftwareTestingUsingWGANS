@@ -38,7 +38,7 @@ def generate_large_suite(
     
     # Initialize generator
     device = torch.device("cpu")
-    generator = Generator().to(device)
+    generator = Generator(z_dim=100, output_dim=3).to(device)
     generator.load_state_dict(torch.load(model_path, map_location=device))
     generator.eval()
     
