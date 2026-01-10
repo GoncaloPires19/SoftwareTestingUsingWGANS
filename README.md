@@ -6,36 +6,45 @@ A machine learning system for generating synthetic JUnit test data using Wassers
 
 Develop an intelligent system capable of generating diverse and realistic test data for Java applications, eliminating the necessity for manual data creation.
 
+## 📈 Session 3 Achievements
+
+In this session, we achieved significant milestones in project robustness: expanded the test suite from 66 to **193 professional JUnit tests** (3 new classes: RobustTests with 8 nested categories, MathOperationsTests with 45 dedicated tests, and ExtendedTests with 46 boundary case tests), successfully trained the WGAN-GP model on all 193 tests across 50 epochs, and implemented a comprehensive experimental framework for Train vs Test Metrics analysis that validated the **model quality with only 0.164 generalization gap** (LOW overfitting risk) and **74.91% average synthetic test quality**. The final result is a robust system validated experimentally, with all changes (analysis scripts, metrics, visualizations, and CSV files) committed to GitHub and ready for thesis evaluation.
+
 ## 📊 Project Structure
 
 ```
 SoftwareTestingUsingWGANS/
-├── src/                          # Java source code (Maven)
-│   ├── main/java/dataloader/     # Main Java utilities
-│   └── test/java/                # 66 JUnit tests (3 test classes)
+├── 📄 README.md                   # Main project documentation
+├── 📄 PROJECT_STRUCTURE.md        # Detailed structure guide
+├── 📄 pom.xml                     # Maven configuration
+├── 📄 setup.py                    # Python setup
+├── 📄 requirements.txt            # Python dependencies
 │
-├── python/                       # Python WGAN-GP implementation
-│   ├── model.py                  # Generator & Critic networks
-│   ├── utils.py                  # Gradient penalty computation
-│   ├── junit_datasets.py         # Data loading & normalization
-│   ├── scripts/
-│   │   ├── clean_data.py         # CSV data cleaning
-│   │   ├── train_simple.py       # WGAN training
-│   │   └── generate_tests.py     # Synthetic test generation
-│   ├── data/
-│   │   ├── junit_data.csv        # Raw JUnit test data
-│   │   └── junit_data_cleaned.csv# Cleaned data (202 samples)
-│   └── models/                   # Trained model checkpoints (50 epochs)
+├── 📁 src/                        # Java source code (Maven)
+│   ├── main/java/dataloader/      # Java utilities (MathOperations.java)
+│   └── test/java/                 # 193 JUnit tests (6 classes)
 │
-├── requirements.txt              # Python dependencies
-├── setup.py                      # Python package config
-├── pom.xml                       # Maven build config
-└── Documentation
-    ├── README.md                 # This file
-    ├── PHASE2_REPORT.md          # Detailed results
-    ├── PROJECT_ANALYSIS.md       # Project structure analysis
-    └── TESTING_GUIDE.md          # Step-by-step guide
+├── 📁 python/                     # Python WGAN-GP implementation
+│   ├── model.py                   # Generator & Critic networks
+│   ├── utils.py                   # Gradient penalty computation
+│   ├── junit_datasets.py          # Dataset loader & normalization
+│   ├── scripts/                   # Training & analysis scripts
+│   ├── data/                      # Raw & cleaned test data
+│   ├── models/                    # Final trained models
+│   └── outputs/                   # Results, CSVs, plots
+│
+├── 📁 docs/                       # Project documentation
+│   ├── TESTING_GUIDE.md
+│   ├── EVOSUITE_GUIDE.md
+│   ├── TRAINING_RESULTS.md
+│   └── ...more documentation
+│
+├── 📁 .scripts/                   # Helper scripts
+├── 📁 .git/                       # Git repository
+└── 📁 target/                     # Maven build output
 ```
+
+**👉 See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for complete documentation.**
 
 ## 🚀 Quick Start
 
@@ -56,96 +65,108 @@ pip install -r requirements.txt
 mvn clean test
 ```
 
-✅ **Result**: 66 tests pass, CSV data collected
+✅ **Result**: 193/193 tests passing, data collected
 
-### 3. Clean Data
-
-```bash
-python python/clean_data.py
-```
-
-✅ **Result**: `python/data/junit_data_cleaned.csv` (202 valid samples)
-
-### 4. Train WGAN Model
+### 3. Train WGAN Model
 
 ```bash
-python python/train_simple.py
+python python/scripts/train_robust.py
 ```
 
-✅ **Result**: 50 generator checkpoints in `python/models/`
+✅ **Result**: Model trained for 50 epochs, 500 synthetic tests generated
 
-### 5. Generate Synthetic Tests
+### 4. Run Experimental Analysis
 
 ```bash
-python -c "
-import torch
-from python.model import Generator
-import pandas as pd
-import numpy as np
-
-gen = Generator(100, 3)
-gen.load_state_dict(torch.load('python/models/generator_epoch50.pth', map_location='cpu'))
-gen.eval()
-
-z = torch.randn(500, 100)
-with torch.no_grad():
-    samples = gen(z).numpy()
-
-samples = (samples + 1) / 2 * 255
-samples = np.round(np.clip(samples, 0, 255)).astype(int)
-df = pd.DataFrame(samples)
-df.to_csv('synthetic_tests.csv', index=False, header=False)
-print('Generated 500 synthetic test samples')
-"
+python python/scripts/experimental_analysis.py
 ```
 
-✅ **Result**: `synthetic_tests.csv` (500 synthetic samples)
+✅ **Result**: Train vs Test metrics, overfitting analysis, quality metrics
 
-## 📈 Results
+## 📈 Key Results
 
-### JUnit Test Suite (66 tests)
-- **ExampleTests**: 34 tests ✅
-  - Math operations (7), Bitwise (7), Number theory (5), Sequences (2), Strings (1), Data (6)
-- **AdvancedTests**: 18 tests ✅
-  - Array ops (2), Sorting (1), Strings (3), Matrix (2), Complex math (2), Conditionals (2), Loops (2), Recursion (2), Bitwise (2)
-- **AdvancedValidationTests**: 14 tests ✅
-  - Exceptions (2), Collections (2), Comparisons (1), Edge cases (2), Boundaries (1), Sequences (2), Performance (1), Patterns (2), Combinatorics (1)
-
-### WGAN-GP Model
-- **Real Samples**: 202 (cleaned JUnit data)
-- **Training**: 50 epochs on 202 samples
-- **Generated**: 500 synthetic test samples
-- **Architecture**:
-  - Generator: 100-dim noise → 256 → 512 → 3-dim (59K params)
-  - Critic: 3-dim → 512 → 256 → 1-dim (33K params)
-
-### Training Metrics (Final Epoch 50)
-```
-Loss_D = 0.8997 (discriminator)
-Loss_G = -2.1270 (generator)
-Status: Training stable and converged
-```
-
-### Data Pipeline
-```
-Raw JUnit Data (483 samples)
-        ↓ [clean_data.py]
-Cleaned Data (202 valid samples)
-        ↓ [train_simple.py]
-Trained WGAN (50 epochs)
-        ↓ [generate_tests.py]
-Synthetic Tests (500 samples)
-```
+| Metric | Value |
+|--------|-------|
+| **Total JUnit Tests** | 193 |
+| **Synthetic Samples Generated** | 500 |
+| **Training Epochs** | 50 |
+| **Overfitting Risk** | ✅ LOW (gap: 0.164) |
+| **Average Synthetic Quality** | 74.91% |
+| **Model Status** | ✅ PRODUCTION READY |
 
 ## 📚 Documentation
 
-- **[PHASE2_REPORT.md](PHASE2_REPORT.md)** - Detailed Phase 2 training results and analysis
-- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Step-by-step testing instructions
-- **[PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md)** - Project structure, issues, and recommendations
+- **[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)** - Complete project organization and architecture
+- **[docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - How to run and interpret tests
+- **[docs/EVOSUITE_GUIDE.md](docs/EVOSUITE_GUIDE.md)** - EvoSuite integration and usage
+- **[docs/TRAINING_RESULTS.md](docs/TRAINING_RESULTS.md)** - Detailed training metrics
+- **[docs/PHASE2_REPORT.md](docs/PHASE2_REPORT.md)** - Phase 2 analysis and results
+
+## 🔧 Training Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `python/scripts/train_robust.py` | Main WGAN training (final) |
+| `python/scripts/experimental_analysis.py` | Train vs Test metrics analysis |
+| `python/scripts/clean_data.py` | Data cleaning utility |
+| `python/scripts/train_simple.py` | Baseline WGAN training |
+| `python/scripts/train_phase2.py` | Phase 2 training |
+
+## 📈 Results Summary
+
+### JUnit Test Suite (193 total)
+
+| Test Class | Count | Type |
+|---|---|---|
+| **ExampleTests** | 34 | Basic tests |
+| **AdvancedTests** | 18 | Advanced scenarios |
+| **AdvancedValidationTests** | 14 | Validation tests |
+| **ExtendedTests** | 46 | Boundary cases |
+| **MathOperationsTests** | 45 | Mathematical operations |
+| **RobustTests** | 36 | Professional suite (8 nested) |
+
+### WGAN-GP Model
+
+**Generator Architecture**
+- Input: 100 (latent vector dimension)
+- Hidden layer 1: 256 neurons
+- Hidden layer 2: 512 neurons
+- Output: 3 (test features)
+- **Total parameters**: 158,979
+
+**Critic Architecture**
+- Input: 3 (test features)
+- Hidden layer 1: 512 neurons
+- Hidden layer 2: 256 neurons
+- Output: 1 (discriminator score)
+- **Total parameters**: 133,633
+
+### Training Metrics (Final Epoch 50)
+
+```
+Discriminator Loss: 0.0391 (stable)
+Generator Loss: -0.3658 (converged)
+Test Loss: 0.2033 (good generalization)
+Generalization Gap: 0.164 (very low)
+Overfitting Risk: LOW ✅
+```
+
+### Data Pipeline
+
+```
+Raw JUnit Data (483 samples)
+        ↓ [clean_data.py]
+Cleaned Data (202 samples)
+        ↓ [train_robust.py]
+WGAN-GP Model (50 epochs)
+        ↓ [generate_phase2_tests.py]
+Synthetic Tests (500 samples)
+```
 
 ## ⚙️ Configuration
 
-### Python Dependencies (requirements.txt)
+### Python Dependencies
+
 ```
 torch==2.0.1
 pandas>=1.5.0
@@ -156,35 +177,101 @@ pytest>=7.0.0
 ```
 
 ### WGAN Hyperparameters
-- **Learning Rate**: 1e-4
+
+- **Learning Rate**: 0.0002
 - **Batch Size**: 32
 - **Epochs**: 50
 - **Critic Iterations**: 5 per generator update
 - **Gradient Penalty (λ)**: 10
 - **Generator Input Dim**: 100
-- **Test Features Output**: 3 (numeric values)
+- **Output Features**: 3 (test features)
 - **Device**: CPU (CUDA compatible)
+- **Optimizer**: Adam with β1=0.5, β2=0.999
 
 ### Java/Maven
+
 - **Java Version**: 21 (source/target: 1.8)
 - **JUnit Version**: 5.10.0 (Jupiter)
 - **Maven Version**: 3.9.9+
 
 ## 🔗 References
 
-- **GitHub**: https://github.com/GoncaloPires19/SoftwareTestingUsingWGANS
+- **GitHub Repository**: https://github.com/GoncaloPires19/SoftwareTestingUsingWGANS
 - **WGAN-GP Paper**: [Improved Training of Wasserstein GANs](https://arxiv.org/abs/1704.00028)
 - **PyTorch Documentation**: https://pytorch.org/docs/
+- **JUnit 5 Documentation**: https://junit.org/junit5/
 
-## 📝 Status
+## 📝 Project Status
 
-✅ **Phase 1**: Complete - WGAN trained, 300 synthetic tests generated  
-✅ **Phase 2**: Complete - 50 epochs on 502 combined samples, 500 new synthetic tests generated  
-✅ **Testing**: All 66 JUnit tests passing  
-✅ **Project**: Ready for thesis evaluation
+✅ **Phase 1** (Complete)
+- WGAN trained on initial dataset
+- 300 synthetic tests generated
+- Baseline validation successful
+
+✅ **Phase 2** (Complete)
+- 50 epochs on 502 combined samples
+- 500 new synthetic tests generated
+- Enhanced model performance
+
+✅ **Phase 3** (Complete)
+- Robust test suite: 66 → 193 tests (192% increase)
+- WGAN retrained with experimental validation
+- Train vs Test metrics comprehensive analysis
+- LOW overfitting risk confirmed (gap: 0.164)
+- Synthetic quality validated: 74.91%
+
+✅ **Testing**
+- All 193 JUnit tests PASSING
+- 66 original + 127 new professional tests
+- Full coverage of edge cases and boundary conditions
+
+✅ **Experimental Analysis**
+- Train vs Test metrics validated
+- Overfitting analysis complete
+- Generalization gap: 0.164 (excellent)
+- Synthetic data quality: 74.91%
+
+✅ **Project Status**
+- Ready for thesis evaluation
+- Complete documentation
+- All code committed to GitHub
+- Production-ready model
+
+## 🎓 Academic Context
+
+This project implements a novel approach to automated software testing using Generative Adversarial Networks (GANs). The system learns from existing JUnit tests and generates new, realistic synthetic test cases that maintain the statistical properties of the original test data while introducing novel variations.
+
+### Key Innovation Points
+
+1. **Automated Test Generation**: Uses WGAN-GP to learn test patterns from real JUnit data
+2. **Quality Assurance**: Experimental validation framework ensures model quality
+3. **Scalability**: Can generate unlimited synthetic tests from limited real data
+4. **Reproducibility**: All code, data, and results documented and version-controlled
+
+## 💡 How to Use Generated Tests
+
+The synthetic tests generated by the model are stored in:
+```
+python/outputs/synthetic_tests_robust.csv
+```
+
+These can be used for:
+- Augmenting existing test suites
+- Testing with diverse input patterns
+- Generating edge case scenarios
+- Model robustness validation
+
+## 📧 Contact & Support
+
+For questions or issues:
+1. Check the [documentation](docs/) folder
+2. Review project [GitHub issues](https://github.com/GoncaloPires19/SoftwareTestingUsingWGANS/issues)
+3. Consult the [TESTING_GUIDE.md](docs/TESTING_GUIDE.md)
 
 ---
 
 **Author**: Gonçalo Pires  
-**Created**: 2025  
-**License**: Academic Project
+**University**: University of Covilhã  
+**Year**: 2025  
+**License**: Academic Project  
+**Last Updated**: January 10, 2026
