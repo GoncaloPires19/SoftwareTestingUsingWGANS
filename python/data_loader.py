@@ -148,7 +148,7 @@ class UnifiedDataLoader:
         features = self._extract_features(df)
         return features, df
     
-    def load_current_junit(self, path: Path = Path("data/junit_data_cleaned.csv")) -> Tuple[np.ndarray, pd.DataFrame]:
+    def load_current_junit(self, path: Path = Path("python/data/junit_data_cleaned.csv")) -> Tuple[np.ndarray, pd.DataFrame]:
         """
         Load current JUnit dataset (what we have now)
         """

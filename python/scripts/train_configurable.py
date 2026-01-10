@@ -203,7 +203,7 @@ class WGANTrainer:
         """
         
         print("\n" + "="*70)
-        print("🚀 WGAN-GP TRAINING")
+        print("WGAN-GP TRAINING")
         print("="*70)
         print(f"Experiment: {self.config.experiment_name}")
         print(f"Epochs: {self.config.training.epochs}")
@@ -283,10 +283,10 @@ class WGANTrainer:
         total_time = (datetime.now() - start_time).total_seconds()
         
         print("\n" + "="*70)
-        print(f"✅ Training completed in {total_time:.1f}s ({total_time/60:.1f}min)")
+        print("TRAINING COMPLETED")
         print("="*70)
-        print(f"📁 Models: {self.config.output.models_dir}/")
-        print(f"📊 History: {history_path}")
+        print(f"Models: {self.config.output.models_dir}/")
+        print(f"History: {history_path}")
         
         self.metrics_tracker.print_summary()
         
@@ -335,7 +335,7 @@ def main():
     parser.add_argument("--lambda-gp", type=float, default=10, help="Gradient penalty lambda")
     
     # Early stopping
-    parser.add_argument("--early-stopping", action="store_true", default=True, help="Enable early stopping")
+    parser.add_argument("--early-stopping", action="store_true", default=False, help="Enable early stopping")
     parser.add_argument("--patience", type=int, default=10, help="Early stopping patience")
     
     # Experiment
