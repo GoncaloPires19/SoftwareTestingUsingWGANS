@@ -16,11 +16,11 @@ from datetime import datetime
 import json
 from typing import Dict, Tuple, List
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from python.model import Generator, Critic
-from python.utils import compute_gradient_penalty
-from python.junit_datasets import JUnitDataset
+from model import Generator, Critic
+from utils import compute_gradient_penalty
+from junit_datasets import JUnitDataset
 from torch.utils.data import DataLoader, random_split
 
 class ExperimentalAnalysis:
@@ -304,7 +304,7 @@ class ExperimentalAnalysis:
         
         return self.train_metrics, self.test_metrics
     
-    def generate_report(self, output_dir: str = "python/experimental"):
+    def generate_report(self, output_dir: str = "outputs/experimental"):
         """Generate comprehensive experimental report"""
         import os
         os.makedirs(output_dir, exist_ok=True)
@@ -364,7 +364,7 @@ class ExperimentalAnalysis:
         print(f"  - quality_metrics.png")
         print(f"  - generalization_gap.png")
     
-    def plot_train_vs_test(self, output_dir: str = "python/experimental"):
+    def plot_train_vs_test(self, output_dir: str = "outputs/experimental"):
         """Plot train vs test losses"""
         fig, axes = plt.subplots(1, 2, figsize=(15, 5))
         
@@ -391,7 +391,7 @@ class ExperimentalAnalysis:
         plt.savefig(f"{output_dir}/train_vs_test.png", dpi=150, bbox_inches='tight')
         plt.close()
     
-    def plot_quality_metrics(self, output_dir: str = "python/experimental"):
+    def plot_quality_metrics(self, output_dir: str = "outputs/experimental"):
         """Plot synthetic data quality metrics"""
         fig, axes = plt.subplots(1, 2, figsize=(15, 5))
         
@@ -418,7 +418,7 @@ class ExperimentalAnalysis:
         plt.savefig(f"{output_dir}/quality_metrics.png", dpi=150, bbox_inches='tight')
         plt.close()
     
-    def plot_generalization_gap(self, output_dir: str = "python/experimental"):
+    def plot_generalization_gap(self, output_dir: str = "outputs/experimental"):
         """Plot generalization gap analysis"""
         fig, ax = plt.subplots(figsize=(12, 6))
         
@@ -454,7 +454,7 @@ def main():
     analysis = ExperimentalAnalysis(device=device)
     
     # Load data
-    dataset = analysis.load_data("python/data/junit_data_cleaned.csv", batch_size=32)
+    dataset = analysis.load_data("data/junit_data_cleaned.csv", batch_size=32)
     
     # Create models
     analysis.create_models(z_dim=100, output_dim=3)

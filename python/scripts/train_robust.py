@@ -18,11 +18,11 @@ from datetime import datetime
 import json
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from python.model import Generator, Critic
-from python.utils import compute_gradient_penalty
-from python.junit_datasets import JUnitDataset
+from model import Generator, Critic
+from utils import compute_gradient_penalty
+from junit_datasets import JUnitDataset
 
 def setup_device():
     """Setup computation device (GPU if available, else CPU)"""
@@ -178,7 +178,7 @@ def train_wgan(epochs: int = 50, batch_size: int = 32,
     device = setup_device()
     
     # Data
-    data_path = "python/data/junit_data_cleaned.csv"
+    data_path = "data/junit_data_cleaned.csv"
     dataset = load_data(data_path, device)
     train_loader, test_loader = create_dataloaders(dataset, batch_size)
     
@@ -205,7 +205,7 @@ def train_wgan(epochs: int = 50, batch_size: int = 32,
         'timestamp': []
     }
     
-    models_dir = "python/models"
+    models_dir = "models"
     os.makedirs(models_dir, exist_ok=True)
     
     print(f"\n{'Epoch':<8} {'D Loss':<12} {'G Loss':<12} {'Val D Loss':<14} {'Time':<10}")
@@ -247,8 +247,9 @@ def train_wgan(epochs: int = 50, batch_size: int = 32,
     
     # Save history
     history_df = pd.DataFrame(history)
-    history_df.to_csv("python/training_history.csv", index=False)
-    print(f"📊 Training history saved to python/training_history.csv")
+    os.makedirs("outputs", exist_ok=True)
+    history_df.to_csv("outputs/training_history.csv", index=False)
+    print(f"📊 Training history saved to outputs/training_history.csv")
     
     # Plot results
     plot_training_history(history)
@@ -281,11 +282,12 @@ def plot_training_history(history):
     axes[1].grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig('python/training_curves.png', dpi=150, bbox_inches='tight')
-    print(f"📈 Training curves saved to python/training_curves.png")
+    os.makedirs("outputs", exist_ok=True)
+    plt.savefig('outputs/training_curves.png', dpi=150, bbox_inches='tight')
+    print(f"📈 Training curves saved to outputs/training_curves.png")
     plt.close()
 
-def generate_synthetic_tests(generator, num_samples=500, output_path="synthetic_tests_robust.csv"):
+def generate_synthetic_tests(generator, num_samples=500, output_path="outputs/synthetic_tests_robust.csv"):
     """Generate synthetic test data"""
     print(f"\n🔄 Generating {num_samples} synthetic tests...")
     
@@ -303,6 +305,7 @@ def generate_synthetic_tests(generator, num_samples=500, output_path="synthetic_
     # Save
     columns = [f'feature_{i}' for i in range(synthetic_data.shape[1])]
     df = pd.DataFrame(synthetic_data, columns=columns)
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     df.to_csv(output_path, index=False)
     
     print(f"✅ Saved {num_samples} synthetic tests to {output_path}")
@@ -329,10 +332,10 @@ if __name__ == "__main__":
         print("\n" + "="*70)
         print("✅ Training completed successfully!")
         print("="*70)
-        print(f"📁 Models saved in: python/models/")
-        print(f"📊 Training history: python/training_history.csv")
-        print(f"📈 Plots: python/training_curves.png")
-        print(f"🧪 Synthetic tests: synthetic_tests_robust.csv")
+        print(f"📁 Models saved in: models/")
+        print(f"📊 Training history: outputs/training_history.csv")
+        print(f"📈 Plots: outputs/training_curves.png")
+        print(f"🧪 Synthetic tests: outputs/synthetic_tests_robust.csv")
         
     except Exception as e:
         print(f"\n❌ Error during training: {e}")
