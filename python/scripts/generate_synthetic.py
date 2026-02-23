@@ -1,5 +1,8 @@
 """
 Generate synthetic test cases using trained WGAN generator
+
+CRITICAL: Uses actual min/max statistics from training data (NOT hardcoded ranges).
+This ensures synthetic data is denormalized to the same scale as real test data.
 """
 
 import sys
@@ -11,11 +14,11 @@ import argparse
 import torch
 import numpy as np
 import pandas as pd
+import json
 import logging
 
 from model import Generator
-from data_loader import UnifiedDataLoader
-
+from junit_datasets import load_normalization_stats
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -35,7 +38,7 @@ class SyntheticTestGenerator:
         Args:
             generator_path: Path to saved generator weights
             z_dim: Latent space dimension
-            output_dim: Output feature dimension
+            output_dim: Output feature dimension (4: methods, branches, statements, method_coverage)
             device: "cpu" or "cuda"
         """
         self.device = torch.device(device)
@@ -59,7 +62,7 @@ class SyntheticTestGenerator:
             num_samples: Number of samples to generate
         
         Returns:
-            (num_samples, 3) array of normalized features
+            (num_samples, 4) array of normalized features
         """
         logger.info(f"🧬 Generating {num_samples} synthetic samples...")
         
@@ -76,50 +79,93 @@ class SyntheticTestGenerator:
         
         return synthetic
     
-    def denormalize_features(self, features: np.ndarray) -> np.ndarray:
+    def denormalize_features(self, features: np.ndarray, norm_stats: dict = None) -> np.ndarray:
         """
-        Denormalize features back to original scale
+        Denormalize features back to original scale using actual training statistics.
         
-        Assumes features were normalized to [-1, 1] during training
-        Approximately reverses the normalization
+        CRITICAL FIX: Uses actual min/max from training data, NOT hardcoded ranges!
+        
+        Args:
+            features (np.ndarray): Normalized features in [-1, 1] range
+            norm_stats (dict): Normalization statistics from training
+                             If None, attempts to load from default location
+        
+        Returns:
+            np.ndarray: Denormalized features in original scale
         """
-        # Inverse of [-1, 1] mapping
-        # y = 2*x - 1, so x = (y + 1) / 2
-        features_01 = (features + 1) / 2
+        if norm_stats is None:
+            # Try to load from default location
+            default_stats_path = Path("python/data/junit_data_cleaned_norm_stats.json")
+            if default_stats_path.exists():
+                logger.info(f"📂 Loading normalization stats from {default_stats_path}")
+                norm_stats = load_normalization_stats(default_stats_path)
+            else:
+                logger.error(f"❌ Normalization stats not found at {default_stats_path}")
+                logger.error(f"   Cannot denormalize without actual min/max values!")
+                raise FileNotFoundError(
+                    f"Normalization statistics file not found. "
+                    f"Expected at: {default_stats_path}\n"
+                    f"Run training first to generate statistics."
+                )
         
-        # Scale to approximate ranges
-        # Methods: 1-500
-        # Branches: 1-1000
-        # Statements: 1-2000
+        denorm = features.copy()
         
-        denorm = features_01.copy()
-        denorm[:, 0] = features_01[:, 0] * 500 + 1
-        denorm[:, 1] = features_01[:, 1] * 1000 + 1
-        denorm[:, 2] = features_01[:, 2] * 2000 + 1
+        # Use actual statistics from training data
+        # Get num_features from stats or infer from features dict
+        if 'num_features' in norm_stats:
+            num_features = norm_stats['num_features']
+        elif 'features' in norm_stats:
+            num_features = len(norm_stats['features'])
+        else:
+            # Old format fallback
+            num_features = len(norm_stats.get('min', [0, 0, 0]))
         
-        return np.clip(denorm, 1, None).astype(int)
+        for col_idx in range(min(denorm.shape[1] if len(denorm.shape) > 1 else 1, num_features)):
+            feature_stats = norm_stats['features'][f'feature_{col_idx}']
+            feature_min = feature_stats['min']
+            feature_max = feature_stats['max']
+            feature_range = feature_max - feature_min
+            
+            if feature_range == 0:
+                logger.warning(f"Column {col_idx} has zero range, using value {feature_min}")
+                if len(denorm.shape) == 1:
+                    denorm = np.full_like(denorm, feature_min)
+                else:
+                    denorm[:, col_idx] = feature_min
+            else:
+                # Inverse of normalization: x = (x_norm + 1) / 2 * range + min
+                if len(denorm.shape) == 1:
+                    denorm = (features + 1) / 2 * feature_range + feature_min
+                else:
+                    denorm[:, col_idx] = (features[:, col_idx] + 1) / 2 * feature_range + feature_min
+            
+            logger.info(f"   Feature {col_idx}: denormalized to range [{feature_min:.2f}, {feature_max:.2f}]")
+        
+        return denorm
     
     def save_to_csv(
         self,
         synthetic_features: np.ndarray,
         output_path: Path,
+        norm_stats: dict = None,
         denormalize: bool = True,
     ) -> None:
         """
         Save synthetic samples to CSV
         
         Args:
-            synthetic_features: (N, 3) array of features
+            synthetic_features: (N, 3) array of features (methods, branches, statements)
             output_path: Where to save CSV
+            norm_stats: Normalization statistics for denormalization
             denormalize: Whether to denormalize features
         """
         
         features = synthetic_features.copy()
         
         if denormalize:
-            features = self.denormalize_features(features)
+            features = self.denormalize_features(features, norm_stats)
         
-        # Create DataFrame
+        # Create DataFrame with 3 features
         df = pd.DataFrame(
             features,
             columns=["methods", "branches", "statements"]
@@ -178,6 +224,13 @@ def main():
         help="Compute device"
     )
     
+    parser.add_argument(
+        "--norm-stats",
+        type=str,
+        default="python/data/junit_data_cleaned_norm_stats.json",
+        help="Path to normalization statistics JSON"
+    )
+    
     args = parser.parse_args()
     
     # Check if model exists
@@ -186,6 +239,17 @@ def main():
         logger.error(f"Model not found: {model_path}")
         return
     
+    # Load normalization statistics
+    norm_stats = None
+    if args.denormalize:
+        stats_path = Path(args.norm_stats)
+        if stats_path.exists():
+            logger.info(f"📂 Loading normalization stats from {stats_path}")
+            norm_stats = load_normalization_stats(stats_path)
+        else:
+            logger.warning(f"⚠ Normalization stats not found at {stats_path}")
+            logger.warning(f"  Synthetic data will NOT be denormalized correctly!")
+    
     # Generate
     generator = SyntheticTestGenerator(
         model_path,
@@ -193,7 +257,12 @@ def main():
     )
     
     synthetic = generator.generate_samples(args.num_samples)
-    generator.save_to_csv(synthetic, Path(args.output), denormalize=args.denormalize)
+    generator.save_to_csv(
+        synthetic,
+        Path(args.output),
+        norm_stats=norm_stats,
+        denormalize=args.denormalize
+    )
     
     logger.info("\n✅ Generation complete!")
 

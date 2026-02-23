@@ -19,11 +19,11 @@ public class TestDataLoader {
     }
 
     public void exportToCSV(String outputFile) throws IOException {
-        BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile));
-        for (String line : collectedData) {
-            writer.write(line + "\n");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
+            for (String line : collectedData) {
+                writer.write(line + "\n");
+            }
         }
-        writer.close();
     }
 
     public int getCollectedDataSize() {

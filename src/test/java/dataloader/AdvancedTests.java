@@ -4,11 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.*;
 import utils.JUnitCSVLogger;
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.List;
 
-public class AdvancedTests {
+class AdvancedTests {
 
     @BeforeEach
     void setUp() {
@@ -27,7 +24,7 @@ public class AdvancedTests {
             int a = tc[0], b = tc[1], c = tc[2], expected = tc[3];
             int result = a + b + c;
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)a, (double)b, (double)c, (double)expected));
+            JUnitCSVLogger.log((double)a, (double)b, (double)c);
         }
     }
 
@@ -42,7 +39,7 @@ public class AdvancedTests {
             int a = tc[0], b = tc[1], c = tc[2], expected = tc[3];
             int result = a * b * c;
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)a, (double)b, (double)c, (double)expected));
+            JUnitCSVLogger.log((double)a, (double)b, (double)c);
         }
     }
 
@@ -62,7 +59,7 @@ public class AdvancedTests {
             for (int i = 0; i < sorted.length - 1; i++) {
                 assertTrue(sorted[i] <= sorted[i + 1]);
             }
-            JUnitCSVLogger.log(Arrays.asList((double)sorted.length));
+            JUnitCSVLogger.log((double)sorted.length, 0.0, 0.0);
         }
     }
 
@@ -74,7 +71,7 @@ public class AdvancedTests {
         for (String str : testCases) {
             String reversed = new StringBuilder(str).reverse().toString();
             assertEquals(str.length(), reversed.length());
-            JUnitCSVLogger.log(Arrays.asList((double)str.length()));
+            JUnitCSVLogger.log((double)str.length(), 0.0, 0.0);
         }
     }
 
@@ -85,7 +82,7 @@ public class AdvancedTests {
         for (String str : testCases) {
             int vowels = countVowels(str);
             assertTrue(vowels >= 0 && vowels <= str.length());
-            JUnitCSVLogger.log(Arrays.asList((double)str.length(), (double)vowels));
+            JUnitCSVLogger.log((double)str.length(), (double)vowels, 0.0);
         }
     }
 
@@ -105,7 +102,7 @@ public class AdvancedTests {
             int expected = Integer.parseInt(tc[2]);
             int result = haystack.contains(needle) ? 1 : 0;
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)result));
+            JUnitCSVLogger.log((double)result, 0.0, 0.0);
         }
     }
 
@@ -129,7 +126,8 @@ public class AdvancedTests {
 
         for (int[][] matrix : testCases) {
             int det = determinant2x2(matrix);
-            JUnitCSVLogger.log(Arrays.asList((double)det));
+            assertTrue(det >= Integer.MIN_VALUE && det <= Integer.MAX_VALUE);
+            JUnitCSVLogger.log((double)det, 0.0, 0.0);
         }
     }
 
@@ -150,7 +148,7 @@ public class AdvancedTests {
             int[][] transpose = transposeMatrix(matrix);
             assertEquals(matrix[0].length, transpose.length);
             assertEquals(matrix.length, transpose[0].length);
-            JUnitCSVLogger.log(Arrays.asList((double)transpose.length));
+            JUnitCSVLogger.log((double)transpose.length, 0.0, 0.0);
         }
     }
 
@@ -169,7 +167,7 @@ public class AdvancedTests {
             double a = tc[0], b = tc[1], c = tc[2];
             double discriminant = b * b - 4 * a * c;
             assertTrue(discriminant >= -0.0001);
-            JUnitCSVLogger.log(Arrays.asList(a, b, c, discriminant));
+            JUnitCSVLogger.log(a, b, c);
         }
     }
 
@@ -187,7 +185,7 @@ public class AdvancedTests {
             double a = tc[0], b = tc[1], expected = tc[2];
             double result = Math.sqrt(a * a + b * b);
             assertEquals(expected, result, 0.01);
-            JUnitCSVLogger.log(Arrays.asList(a, b, result));
+            JUnitCSVLogger.log(a, b, result);
         }
     }
 
@@ -204,7 +202,7 @@ public class AdvancedTests {
             double expectedGrade = tc[1];
             double grade = assignGrade(score);
             assertEquals(expectedGrade, grade);
-            JUnitCSVLogger.log(Arrays.asList(score, grade));
+            JUnitCSVLogger.log(score, grade, 0.0);
         }
     }
 
@@ -227,7 +225,7 @@ public class AdvancedTests {
             int value = tc[0], min = tc[1], max = tc[2], expected = tc[3];
             int result = (value >= min && value <= max) ? 1 : 0;
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)value, (double)min, (double)max, (double)result));
+            JUnitCSVLogger.log((double)value, (double)min, (double)max);
         }
     }
 
@@ -244,7 +242,7 @@ public class AdvancedTests {
             int expected = tc[1];
             int result = sumUpTo(n);
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)n, (double)result));
+            JUnitCSVLogger.log((double)n, (double)result, 0.0);
         }
     }
 
@@ -255,7 +253,7 @@ public class AdvancedTests {
         for (int n : testCases) {
             int result = countNestedLoopIterations(n);
             assertEquals(n * n, result);
-            JUnitCSVLogger.log(Arrays.asList((double)n, (double)result));
+            JUnitCSVLogger.log((double)n, (double)result, 0.0);
         }
     }
 
@@ -272,7 +270,7 @@ public class AdvancedTests {
             int expected = tc[1];
             int result = recursiveFactorial(n);
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)n, (double)result));
+            JUnitCSVLogger.log((double)n, (double)result, 0.0);
         }
     }
 
@@ -288,7 +286,7 @@ public class AdvancedTests {
             int expected = tc[1];
             int result = recursiveFibonacci(n);
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)n, (double)result));
+            JUnitCSVLogger.log((double)n, (double)result, 0.0);
         }
     }
 
@@ -300,7 +298,7 @@ public class AdvancedTests {
         for (int num : testCases) {
             int bitCount = Integer.bitCount(num);
             assertTrue(bitCount >= 0);
-            JUnitCSVLogger.log(Arrays.asList((double)num, (double)bitCount));
+            JUnitCSVLogger.log((double)num, (double)bitCount, 0.0);
         }
     }
 
@@ -311,7 +309,7 @@ public class AdvancedTests {
         for (int num : testCases) {
             int result = isPowerOfTwo(num) ? 1 : 0;
             assertEquals(1, result);
-            JUnitCSVLogger.log(Arrays.asList((double)num, (double)result));
+            JUnitCSVLogger.log((double)num, (double)result, 0.0);
         }
     }
 

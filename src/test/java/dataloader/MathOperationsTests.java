@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Automated Tests for MathOperations class
  * Generated with EvoSuite-inspired approach for comprehensive coverage
  */
-public class MathOperationsTests {
+class MathOperationsTests {
     
     // ============ Sum Tests ============
     @Test

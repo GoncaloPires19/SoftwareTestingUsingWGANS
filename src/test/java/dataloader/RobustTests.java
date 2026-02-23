@@ -4,13 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
-import org.junit.jupiter.params.provider.CsvSource;
 import static org.junit.jupiter.api.Assertions.*;
 import utils.JUnitCSVLogger;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * RobustTests - Professional-grade test suite for WGAN training
@@ -18,13 +13,11 @@ import java.util.List;
  * Each test logs data for synthetic test generation
  */
 @DisplayName("Robust Test Suite for WGAN Training")
-public class RobustTests {
+class RobustTests {
     
-    private TestDataLoader dataLoader;
-
     @BeforeEach
     void setUp() {
-        dataLoader = new TestDataLoader();
+        // Setup before each test
     }
 
     // ============================================================================
@@ -46,7 +39,7 @@ public class RobustTests {
                 int a = tc[0], b = tc[1];
                 int result = a + b;
                 assertEquals((long)a + b, result);
-                logTestData(a, b, result, "addition");
+                logTestData(a, b, result);
             }
         }
 
@@ -61,7 +54,7 @@ public class RobustTests {
                 int a = tc[0], b = tc[1];
                 int result = a - b;
                 assertEquals(a - b, result);
-                logTestData(a, b, result, "subtraction");
+                logTestData(a, b, result);
             }
         }
 
@@ -77,7 +70,7 @@ public class RobustTests {
                 int a = tc[0], b = tc[1];
                 int result = a * b;
                 assertEquals(a * b, result);
-                logTestData(a, b, result, "multiplication");
+                logTestData(a, b, result);
             }
         }
 
@@ -92,7 +85,7 @@ public class RobustTests {
                 int a = tc[0], b = tc[1];
                 int result = a / b;
                 assertEquals(a / b, result);
-                logTestData(a, b, result, "division");
+                logTestData(a, b, result);
             }
         }
 
@@ -107,7 +100,7 @@ public class RobustTests {
                 int a = tc[0], b = tc[1];
                 int result = a % b;
                 assertEquals(a % b, result);
-                logTestData(a, b, result, "modulo");
+                logTestData(a, b, result);
             }
         }
     }
@@ -128,13 +121,13 @@ public class RobustTests {
             for (int prime : primes) {
                 boolean result = isPrime(prime);
                 assertTrue(result, "Should be prime: " + prime);
-                logTestData(prime, 1, result ? 1 : 0, "isPrime");
+                logTestData(prime, 1, result ? 1 : 0);
             }
             
             for (int nonPrime : nonPrimes) {
                 boolean result = isPrime(nonPrime);
                 assertFalse(result, "Should not be prime: " + nonPrime);
-                logTestData(nonPrime, 1, result ? 1 : 0, "isPrime");
+                logTestData(nonPrime, 1, result ? 1 : 0);
             }
         }
 
@@ -149,7 +142,7 @@ public class RobustTests {
                 int a = tc[0], b = tc[1];
                 int result = gcd(a, b);
                 assertTrue(a % result == 0 && b % result == 0);
-                logTestData(a, b, result, "gcd");
+                logTestData(a, b, result);
             }
         }
 
@@ -166,7 +159,7 @@ public class RobustTests {
                 int expected = tc[1];
                 int result = factorial(n);
                 assertEquals(expected, result);
-                logTestData(n, 1, result, "factorial");
+                logTestData(n, 1, result);
             }
         }
 
@@ -179,13 +172,13 @@ public class RobustTests {
             for (int sq : perfectSquares) {
                 boolean result = isPerfectSquare(sq);
                 assertTrue(result, "Should be perfect square: " + sq);
-                logTestData(sq, 1, result ? 1 : 0, "isPerfectSquare");
+                logTestData(sq, 1, result ? 1 : 0);
             }
             
             for (int nonSq : nonSquares) {
                 boolean result = isPerfectSquare(nonSq);
                 assertFalse(result, "Should not be perfect square: " + nonSq);
-                logTestData(nonSq, 1, result ? 1 : 0, "isPerfectSquare");
+                logTestData(nonSq, 1, result ? 1 : 0);
             }
         }
     }
@@ -212,13 +205,13 @@ public class RobustTests {
             for (String p : palindromes) {
                 boolean result = isPalindrome(p);
                 assertTrue(result, "Should be palindrome: " + p);
-                logTestData(p.length(), 1, result ? 1 : 0, "isPalindrome");
+                logTestData(p.length(), 1, result ? 1 : 0);
             }
             
             for (String np : nonPalindromes) {
                 boolean result = isPalindrome(np);
                 assertFalse(result, "Should not be palindrome: " + np);
-                logTestData(np.length(), 1, result ? 1 : 0, "isPalindrome");
+                logTestData(np.length(), 1, result ? 1 : 0);
             }
         }
 
@@ -234,7 +227,7 @@ public class RobustTests {
                 int n = tc[0];
                 int result = fibonacci(n);
                 assertEquals(tc[1], result);
-                logTestData(n, 1, result, "fibonacci");
+                logTestData(n, 1, result);
             }
         }
 
@@ -257,7 +250,7 @@ public class RobustTests {
                 boolean result = str.contains(substring);
                 assertEquals(expected, result);
                 logTestData(str.length(), substring.length(), 
-                           result ? 1 : 0, "stringContains");
+                           result ? 1 : 0);
             }
         }
     }
@@ -280,7 +273,8 @@ public class RobustTests {
             for (int[] arr : testArrays) {
                 int sum = 0;
                 for (int x : arr) sum += x;
-                logTestData(arr.length, sum, sum, "arraySum");
+                assertTrue(sum >= Integer.MIN_VALUE && sum <= Integer.MAX_VALUE);
+                logTestData(arr.length, sum, sum);
             }
         }
 
@@ -295,7 +289,8 @@ public class RobustTests {
             for (int[] arr : testArrays) {
                 int max = arr[0];
                 for (int x : arr) max = Math.max(max, x);
-                logTestData(arr.length, max, max, "arrayMax");
+                assertTrue(max >= Integer.MIN_VALUE);
+                logTestData(arr.length, max, max);
             }
         }
 
@@ -309,8 +304,9 @@ public class RobustTests {
             
             for (int[] arr : testArrays) {
                 int min = arr[0];
+                assertTrue(min <= Integer.MAX_VALUE);
                 for (int x : arr) min = Math.min(min, x);
-                logTestData(arr.length, min, min, "arrayMin");
+                logTestData(arr.length, min, min);
             }
         }
 
@@ -332,7 +328,7 @@ public class RobustTests {
                     assertTrue(sorted[i-1] <= sorted[i]);
                 }
                 logTestData(arr.length, sorted[0], 
-                           sorted[sorted.length - 1], "bubbleSort");
+                           sorted[sorted.length - 1]);
             }
         }
 
@@ -352,7 +348,7 @@ public class RobustTests {
                     assertEquals(arr[arr.length - 1 - i], reversed[i]);
                 }
                 logTestData(arr.length, reversed[0], 
-                           reversed[reversed.length - 1], "arrayReverse");
+                           reversed[reversed.length - 1]);
             }
         }
     }
@@ -375,7 +371,7 @@ public class RobustTests {
                 int a = tc[0], b = tc[1];
                 int result = a & b;
                 assertEquals(a & b, result);
-                logTestData(a, b, result, "bitwiseAND");
+                logTestData(a, b, result);
             }
         }
 
@@ -390,7 +386,7 @@ public class RobustTests {
                 int a = tc[0], b = tc[1];
                 int result = a | b;
                 assertEquals(a | b, result);
-                logTestData(a, b, result, "bitwiseOR");
+                logTestData(a, b, result);
             }
         }
 
@@ -405,7 +401,7 @@ public class RobustTests {
                 int a = tc[0], b = tc[1];
                 int result = a ^ b;
                 assertEquals(a ^ b, result);
-                logTestData(a, b, result, "bitwiseXOR");
+                logTestData(a, b, result);
             }
         }
 
@@ -417,7 +413,7 @@ public class RobustTests {
             for (int v : values) {
                 int result = ~v;
                 assertEquals(~v, result);
-                logTestData(v, 1, result, "bitwiseNOT");
+                logTestData(v, 1, result);
             }
         }
 
@@ -434,8 +430,8 @@ public class RobustTests {
                 int rightShift = value >> shifts;
                 assertEquals(value << shifts, leftShift);
                 assertEquals(value >> shifts, rightShift);
-                logTestData(value, shifts, leftShift, "leftShift");
-                logTestData(value, shifts, rightShift, "rightShift");
+                logTestData(value, shifts, leftShift);
+                logTestData(value, shifts, rightShift);
             }
         }
     }
@@ -458,7 +454,7 @@ public class RobustTests {
                 int a = tc[0], b = tc[1];
                 boolean result = a > b;
                 assertEquals(a > b, result);
-                logTestData(a, b, result ? 1 : 0, "greaterThan");
+                logTestData(a, b, result ? 1 : 0);
             }
         }
 
@@ -473,7 +469,7 @@ public class RobustTests {
                 int a = tc[0], b = tc[1];
                 boolean result = a < b;
                 assertEquals(a < b, result);
-                logTestData(a, b, result ? 1 : 0, "lessThan");
+                logTestData(a, b, result ? 1 : 0);
             }
         }
 
@@ -488,7 +484,7 @@ public class RobustTests {
                 int a = tc[0], b = tc[1];
                 boolean result = a == b;
                 assertEquals(a == b, result);
-                logTestData(a, b, result ? 1 : 0, "equality");
+                logTestData(a, b, result ? 1 : 0);
             }
         }
 
@@ -503,7 +499,7 @@ public class RobustTests {
                 boolean result = tc[0] && tc[1];
                 assertEquals(tc[0] && tc[1], result);
                 logTestData(tc[0] ? 1 : 0, tc[1] ? 1 : 0, 
-                           result ? 1 : 0, "logicalAND");
+                           result ? 1 : 0);
             }
         }
 
@@ -518,7 +514,7 @@ public class RobustTests {
                 boolean result = tc[0] || tc[1];
                 assertEquals(tc[0] || tc[1], result);
                 logTestData(tc[0] ? 1 : 0, tc[1] ? 1 : 0, 
-                           result ? 1 : 0, "logicalOR");
+                           result ? 1 : 0);
             }
         }
     }
@@ -538,7 +534,7 @@ public class RobustTests {
             for (int val : cases) {
                 int result = Math.abs(val);
                 assertEquals(Math.abs(val), result);
-                logTestData(val, 1, result, "abs");
+                logTestData(val, 1, result);
             }
         }
 
@@ -553,7 +549,7 @@ public class RobustTests {
                 int base = tc[0], exp = tc[1];
                 double result = Math.pow(base, exp);
                 assertEquals(Math.pow(base, exp), result);
-                logTestData(base, exp, (int)result, "power");
+                logTestData(base, exp, (int)result);
             }
         }
 
@@ -565,7 +561,7 @@ public class RobustTests {
             for (int val : cases) {
                 double result = Math.sqrt(val);
                 assertEquals(Math.sqrt(val), result);
-                logTestData(val, 1, (int)result, "sqrt");
+                logTestData(val, 1, (int)result);
             }
         }
 
@@ -582,8 +578,8 @@ public class RobustTests {
                 int max = Math.max(a, b);
                 assertEquals(Math.min(a, b), min);
                 assertEquals(Math.max(a, b), max);
-                logTestData(a, b, min, "min");
-                logTestData(a, b, max, "max");
+                logTestData(a, b, min);
+                logTestData(a, b, max);
             }
         }
     }
@@ -600,15 +596,15 @@ public class RobustTests {
         void testZeroHandling() {
             // Addition with zero
             assertEquals(5, 5 + 0);
-            logTestData(5, 0, 5, "addZero");
+            logTestData(5, 0, 5);
             
             // Multiplication by zero
             assertEquals(0, 5 * 0);
-            logTestData(5, 0, 0, "multiplyZero");
+            logTestData(5, 0, 0);
             
             // Division of zero
             assertEquals(0, 0 / 5);
-            logTestData(0, 5, 0, "divideZero");
+            logTestData(0, 5, 0);
         }
 
         @Test
@@ -616,25 +612,25 @@ public class RobustTests {
         void testNegativeNumbers() {
             // Negative addition
             assertEquals(-8, -5 + (-3));
-            logTestData(-5, -3, -8, "addNegative");
+            logTestData(-5, -3, -8);
             
             // Negative multiplication
             assertEquals(15, -5 * (-3));
-            logTestData(-5, -3, 15, "multiplyNegative");
+            logTestData(-5, -3, 15);
             
             // Negative comparisons
             assertTrue(-5 < -3);
-            logTestData(-5, -3, 1, "compareNegative");
+            logTestData(-5, -3, 1);
         }
 
         @Test
         @DisplayName("Integer overflow scenarios")
         void testIntegerOverflow() {
             // Close to MAX_VALUE
-            int near_max = Integer.MAX_VALUE - 100;
-            int result = near_max + 50;
-            assertTrue(near_max < Integer.MAX_VALUE);
-            logTestData(near_max, 50, result, "nearMaxValue");
+            int nearMax = Integer.MAX_VALUE - 100;
+            int result = nearMax + 50;
+            assertTrue(nearMax < Integer.MAX_VALUE);
+            logTestData(nearMax, 50, result);
         }
 
         @Test
@@ -645,12 +641,12 @@ public class RobustTests {
             // Sum of single element
             int sum = singleArray[0];
             assertEquals(42, sum);
-            logTestData(1, 42, sum, "sumSingleElement");
+            logTestData(1, 42, sum);
             
             // Reverse single element
             int[] reversed = {singleArray[0]};
             assertEquals(42, reversed[0]);
-            logTestData(1, 1, reversed[0], "reverseSingleElement");
+            logTestData(1, 1, reversed[0]);
         }
 
         @Test
@@ -660,11 +656,11 @@ public class RobustTests {
             
             // Length of empty string
             assertEquals(0, empty.length());
-            logTestData(0, 1, 0, "emptyStringLength");
+            logTestData(0, 1, 0);
             
             // Palindrome of empty string
             assertTrue(isPalindrome(""));
-            logTestData(0, 1, 1, "emptyStringPalindrome");
+            logTestData(0, 1, 1);
         }
     }
 
@@ -749,21 +745,11 @@ public class RobustTests {
         return reversed;
     }
 
-    private void logTestData(int input1, int input2, int output, String operation) {
-        JUnitCSVLogger.log(Arrays.asList(
+    private void logTestData(int input1, int input2, int output) {
+        JUnitCSVLogger.log(
             (double) input1,
             (double) input2,
-            (double) output,
-            0.0  // placeholder for operation encoding
-        ));
-    }
-
-    private void logTestData(int input1, int input2, double output, String operation) {
-        JUnitCSVLogger.log(Arrays.asList(
-            (double) input1,
-            (double) input2,
-            output,
-            0.0
-        ));
+            (double) output
+        );
     }
 }

@@ -21,10 +21,16 @@ class Generator(nn.Module):
     
     Args:
         z_dim (int): Dimension of input noise vector (default: 100)
-        output_dim (int): Dimension of output synthetic features (default: 3)
+        output_dim (int): Dimension of output synthetic features (default: 4)
     
     Architecture:
         100 -> 256 (LeakyReLU) -> 512 (LeakyReLU) -> output_dim (Linear)
+    
+    Output features:
+        - methods: number of test methods
+        - branches: number of branches covered
+        - statements: number of statements covered
+        - method_coverage: ratio of method coverage
     """
     def __init__(self, z_dim, output_dim):
         super(Generator, self).__init__()
@@ -36,6 +42,7 @@ class Generator(nn.Module):
         self.fc3 = nn.Linear(512, output_dim)
         
         self.leaky_relu = nn.LeakyReLU(0.2)
+        self.tanh = nn.Tanh()  # Ensures output in [-1, 1] for normalized data
         
     def forward(self, z):
         """
@@ -46,10 +53,12 @@ class Generator(nn.Module):
         
         Returns:
             torch.Tensor: Synthetic features of shape (batch_size, output_dim)
+                         Values are in [-1, 1] range (tanh activation)
         """
         x = self.leaky_relu(self.fc1(z))
         x = self.leaky_relu(self.fc2(x))
         x = self.fc3(x)
+        x = self.tanh(x)  # Constrain output to [-1, 1] for normalized data
         return x
 
 

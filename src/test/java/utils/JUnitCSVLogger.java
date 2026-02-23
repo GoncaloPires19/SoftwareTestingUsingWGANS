@@ -3,7 +3,6 @@ package utils;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.File;
-import java.util.List;
 
 public class JUnitCSVLogger {
 
@@ -22,16 +21,24 @@ public class JUnitCSVLogger {
         }
     }
 
-    public static synchronized void log(List<Double> values) {
+    /**
+     * Logs test metrics to CSV file with exactly 3 columns: methods, branches, statements.
+     * 
+     * @param methods Number of methods covered/tested
+     * @param branches Number of branches covered/tested
+     * @param statements Number of statements covered/tested
+     */
+    public static synchronized void log(double methods, double branches, double statements) {
         try {
-            for (int i = 0; i < values.size(); i++) {
-                writer.append(values.get(i).toString());
-                if (i < values.size() - 1) writer.append(",");
-            }
-            writer.append("\n");
+            writer.append(String.valueOf(methods))
+                  .append(",")
+                  .append(String.valueOf(branches))
+                  .append(",")
+                  .append(String.valueOf(statements))
+                  .append("\n");
             writer.flush();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to log test data: " + e.getMessage(), e);
         }
     }
 }

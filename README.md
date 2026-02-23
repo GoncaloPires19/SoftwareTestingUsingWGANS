@@ -14,37 +14,42 @@ In this session, we achieved significant milestones in project robustness: expan
 
 ```
 SoftwareTestingUsingWGANS/
-├── 📄 README.md                   # Main project documentation
-├── 📄 PROJECT_STRUCTURE.md        # Detailed structure guide
+├── 📄 README.md                   # Main documentation
 ├── 📄 pom.xml                     # Maven configuration
-├── 📄 setup.py                    # Python setup
 ├── 📄 requirements.txt            # Python dependencies
+├── 📄 .gitignore                  # Git ignore rules
 │
-├── 📁 src/                        # Java source code (Maven)
-│   ├── main/java/dataloader/      # Java utilities (MathOperations.java)
-│   └── test/java/                 # 193 JUnit tests (6 classes)
+├── 📁 src/                        # Java source code
+│   ├── main/java/dataloader/      # Java utilities
+│   └── test/java/                 # 193 JUnit tests
 │
 ├── 📁 python/                     # Python WGAN-GP implementation
+│   ├── config.py                  # Configuration
 │   ├── model.py                   # Generator & Critic networks
-│   ├── utils.py                   # Gradient penalty computation
-│   ├── junit_datasets.py          # Dataset loader & normalization
+│   ├── utils.py                   # Gradient penalty
+│   ├── junit_datasets.py          # Dataset loader
 │   ├── scripts/                   # Training & analysis scripts
-│   ├── data/                      # Raw & cleaned test data
-│   ├── models/                    # Final trained models
-│   └── outputs/                   # Results, CSVs, plots
+│   │   ├── train_robust.py        # Main training script
+│   │   ├── generate_synthetic.py  # Generate synthetic tests
+│   │   └── experimental_analysis.py # Validation analysis
+│   └── data/                      # Training data
+│       ├── junit_data.csv         # Raw test metrics
+│       └── junit_data_cleaned.csv # Cleaned dataset
 │
-├── 📁 docs/                       # Project documentation
-│   ├── TESTING_GUIDE.md
-│   ├── EVOSUITE_GUIDE.md
-│   ├── TRAINING_RESULTS.md
-│   └── ...more documentation
+├── 📁 docs/                       # Documentation
+│   ├── QUICK_START.md             # Quick start guide
+│   ├── ADVANCED_TRAINING_GUIDE.md # Training guide
+│   └── DATA_SCHEMA.md             # Data format specs
 │
-├── 📁 .scripts/                   # Helper scripts
-├── 📁 .git/                       # Git repository
-└── 📁 target/                     # Maven build output
+├── 📁 models/                     # Trained models (.pth)
+├── 📁 outputs/                    # Generated results
+├── 📁 data/                       # Additional datasets
+│   ├── raw/                       # External datasets
+│   └── processed/                 # Processed data
+│
+└── 📁 .github/                    # GitHub configuration
+    └── copilot-instructions.md    # AI assistant instructions
 ```
-
-**👉 See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for complete documentation.**
 
 ## 🚀 Quick Start
 
@@ -59,29 +64,33 @@ cd SoftwareTestingUsingWGANS
 pip install -r requirements.txt
 ```
 
-### 2. Run JUnit Tests
+### 2. Full Pipeline Execution
 
 ```bash
+# Step 1: Run Java tests (generates test metrics)
 mvn clean test
-```
 
-✅ **Result**: 193/193 tests passing, data collected
+# Step 2: Train WGAN model with balanced profile
+python python/scripts/train_basic_profiles.py --profile balanced
 
-### 3. Train WGAN Model
+# Step 3: Generate synthetic tests
+python python/scripts/generate_synthetic.py --num_samples 500
 
-```bash
-python python/scripts/train_robust.py
-```
-
-✅ **Result**: Model trained for 50 epochs, 500 synthetic tests generated
-
-### 4. Run Experimental Analysis
-
-```bash
+# Step 4: Analyze results (optional)
 python python/scripts/experimental_analysis.py
 ```
 
-✅ **Result**: Train vs Test metrics, overfitting analysis, quality metrics
+**Training Profiles Available:**
+- `aggressive`: Fast training (50 epochs)
+- `balanced`: Recommended for production (80 epochs)
+- `experimental`: Advanced configuration (80 epochs)
+- `conservative`: Maximum stability (150 epochs)
+
+✅ **Expected Results**: 
+- 193/193 JUnit tests passing
+- Model trained successfully
+- 500 synthetic tests generated
+- Validation metrics: ~75% quality, LOW overfitting
 
 ## 📈 Key Results
 
@@ -95,24 +104,6 @@ python python/scripts/experimental_analysis.py
 | **Model Status** | ✅ PRODUCTION READY |
 
 ## 📚 Documentation
-
-- **[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)** - Complete project organization and architecture
-- **[docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - How to run and interpret tests
-- **[docs/EVOSUITE_GUIDE.md](docs/EVOSUITE_GUIDE.md)** - EvoSuite integration and usage
-- **[docs/TRAINING_RESULTS.md](docs/TRAINING_RESULTS.md)** - Detailed training metrics
-- **[docs/PHASE2_REPORT.md](docs/PHASE2_REPORT.md)** - Phase 2 analysis and results
-
-## 🔧 Training Scripts
-
-| Script | Purpose |
-|--------|---------|
-| `python/scripts/train_robust.py` | Main WGAN training (final) |
-| `python/scripts/experimental_analysis.py` | Train vs Test metrics analysis |
-| `python/scripts/clean_data.py` | Data cleaning utility |
-| `python/scripts/train_simple.py` | Baseline WGAN training |
-| `python/scripts/train_phase2.py` | Phase 2 training |
-
-## 📈 Results Summary
 
 ### JUnit Test Suite (193 total)
 
@@ -157,9 +148,9 @@ Overfitting Risk: LOW ✅
 Raw JUnit Data (483 samples)
         ↓ [clean_data.py]
 Cleaned Data (202 samples)
-        ↓ [train_robust.py]
+        ↓ [train_configurable.py]
 WGAN-GP Model (50 epochs)
-        ↓ [generate_phase2_tests.py]
+        ↓ [generate_synthetic.py]
 Synthetic Tests (500 samples)
 ```
 
@@ -272,6 +263,6 @@ For questions or issues:
 
 **Author**: Gonçalo Pires  
 **University**: University of Covilhã  
-**Year**: 2025  
+**Year**: 2026  
 **License**: Academic Project  
-**Last Updated**: January 10, 2026
+**Last Updated**: February 23, 2026

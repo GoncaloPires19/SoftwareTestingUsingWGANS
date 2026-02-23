@@ -4,13 +4,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.*;
 import utils.JUnitCSVLogger;
-import java.util.Arrays;
-import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-public class AdvancedValidationTests {
+class AdvancedValidationTests {
 
     @BeforeEach
     void setUp() {
@@ -32,7 +31,7 @@ public class AdvancedValidationTests {
             int a = tc[0], b = tc[1], expected = tc[2];
             int result = safeDivide(a, b);
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)a, (double)b, (double)result));
+            JUnitCSVLogger.log((double)a, (double)b, (double)result);
         }
     }
 
@@ -43,7 +42,7 @@ public class AdvancedValidationTests {
         for (String str : testCases) {
             int result = isValidString(str) ? 1 : 0;
             assertEquals(1, result);
-            JUnitCSVLogger.log(Arrays.asList((double)result));
+            JUnitCSVLogger.log((double)result, 0.0, 0.0);
         }
     }
 
@@ -64,7 +63,7 @@ public class AdvancedValidationTests {
                 list.add(val);
             }
             assertEquals(arr.length, list.size());
-            JUnitCSVLogger.log(Arrays.asList((double)list.size()));
+            JUnitCSVLogger.log((double)list.size(), 0.0, 0.0);
         }
     }
 
@@ -83,7 +82,7 @@ public class AdvancedValidationTests {
             map.put(tc[0], tc[1]);
             assertEquals(1, map.size());
             assertTrue(map.containsKey(tc[0]));
-            JUnitCSVLogger.log(Arrays.asList((double)map.size()));
+            JUnitCSVLogger.log((double)map.size(), 0.0, 0.0);
         }
     }
 
@@ -95,7 +94,7 @@ public class AdvancedValidationTests {
         for (String str : testCases) {
             String copy = new String(str);
             assertEquals(str, copy);
-            JUnitCSVLogger.log(Arrays.asList((double)str.length()));
+            JUnitCSVLogger.log((double)str.length(), 0.0, 0.0);
         }
     }
 
@@ -114,7 +113,7 @@ public class AdvancedValidationTests {
             long a = tc[0], b = tc[1], expected = tc[2];
             long result = a + b;
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)a, (double)b, (double)result));
+            JUnitCSVLogger.log((double)a, (double)b, (double)result);
         }
     }
 
@@ -132,7 +131,7 @@ public class AdvancedValidationTests {
             double a = tc[0], b = tc[1], expected = tc[2];
             double result = a + b;
             assertEquals(expected, result, 0.001);
-            JUnitCSVLogger.log(Arrays.asList(a, b, result));
+            JUnitCSVLogger.log(a, b, result);
         }
     }
 
@@ -153,7 +152,7 @@ public class AdvancedValidationTests {
             int a = tc[0], b = tc[1], expected = tc[2];
             int result = (a >= b) ? 1 : 0;
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)a, (double)b, (double)result));
+            JUnitCSVLogger.log((double)a, (double)b, (double)result);
         }
     }
 
@@ -171,7 +170,7 @@ public class AdvancedValidationTests {
         for (int[] arr : testCases) {
             boolean isAscending = isAscending(arr);
             assertTrue(isAscending);
-            JUnitCSVLogger.log(Arrays.asList((double)arr.length));
+            JUnitCSVLogger.log((double)arr.length, 0.0, 0.0);
         }
     }
 
@@ -188,7 +187,7 @@ public class AdvancedValidationTests {
         for (int[] arr : testCases) {
             boolean isAlternating = hasAlternatingPattern(arr);
             assertTrue(isAlternating);
-            JUnitCSVLogger.log(Arrays.asList((double)arr.length));
+            JUnitCSVLogger.log((double)arr.length, 0.0, 0.0);
         }
     }
 
@@ -199,12 +198,12 @@ public class AdvancedValidationTests {
 
         for (int n : testCases) {
             long start = System.nanoTime();
-            long result = sumRange(n);
+            sumRange(n);
             long end = System.nanoTime();
             long duration = end - start;
 
             assertTrue(duration >= 0);
-            JUnitCSVLogger.log(Arrays.asList((double)n, (double)duration));
+            JUnitCSVLogger.log((double)n, (double)duration, 0.0);
         }
     }
 
@@ -229,7 +228,7 @@ public class AdvancedValidationTests {
             int expected = tc[1];
             int result = isPrime(num) ? 1 : 0;
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)num, (double)result));
+            JUnitCSVLogger.log((double)num, (double)result, 0.0);
         }
     }
 
@@ -253,7 +252,7 @@ public class AdvancedValidationTests {
             int expected = tc[1];
             int result = isPerfectSquare(num) ? 1 : 0;
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)num, (double)result));
+            JUnitCSVLogger.log((double)num, (double)result, 0.0);
         }
     }
 
@@ -272,7 +271,7 @@ public class AdvancedValidationTests {
             int n = tc[0], r = tc[1], expected = tc[2];
             int result = combination(n, r);
             assertEquals(expected, result);
-            JUnitCSVLogger.log(Arrays.asList((double)n, (double)r, (double)result));
+            JUnitCSVLogger.log((double)n, (double)r, (double)result);
         }
     }
 

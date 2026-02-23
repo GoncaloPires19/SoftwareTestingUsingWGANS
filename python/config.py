@@ -1,6 +1,8 @@
 """
 Centralized configuration for WGAN training with multiple datasets.
 Supports: Juliet, OWASP, Defects4J, Evosuite (synthetic), and combinations.
+
+REPRODUCIBILITY: All random seeds must be set to ensure deterministic training.
 """
 
 from pathlib import Path
@@ -9,6 +11,42 @@ from typing import List, Literal
 from enum import Enum
 import json
 import os
+import random
+import numpy as np
+import torch
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def set_random_seed(seed: int = 42):
+    """
+    Set random seed for complete reproducibility.
+    
+    Must be called BEFORE any random operations!
+    
+    Args:
+        seed: Random seed value (default: 42 for research reproducibility)
+    """
+    logger.info(f"🔐 Setting random seed: {seed}")
+    
+    # Python random
+    random.seed(seed)
+    
+    # NumPy random
+    np.random.seed(seed)
+    
+    # PyTorch random
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    
+    # Enable deterministic algorithms
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    
+    logger.info(f"✅ Random seed set successfully")
+
 
 
 class DatasetMode(Enum):
@@ -91,14 +129,32 @@ class ModelConfig:
 
 @dataclass
 class TrainingConfig:
-    """Training hyperparameters"""
-    epochs: int = 50
-    batch_size: int = 32
-    learning_rate: float = 0.0002
+    """
+    Training hyperparameters for WGAN-GP training - STABLE VERSION.
+    
+    Tuned for small datasets (<500 samples) to prevent overfitting and mode collapse.
+    REPRODUCIBILITY: seed MUST be set before training begins!
+    """
+    # Training configuration
+    epochs: int = 50  # Reduced from 100 - sweet spot for small datasets
+    batch_size: int = 16  # Reduced from 32 - more updates per epoch, less memory
+    
+    # Learning rates - CRITICAL for stability
+    learning_rate: float = 0.00005  # Reduced from 0.0002 - slower, more stable learning
     beta1: float = 0.5
     beta2: float = 0.999
-    lambda_gp: float = 10.0
-    n_critic: int = 5  # Critic iterations per epoch
+    
+    # WGAN-GP specific
+    lambda_gp: float = 5.0  # Reduced from 10 - less strict Lipschitz constraint
+    n_critic: int = 7  # Increased from 5 - better critic training per generator step
+    
+    # Early stopping parameters
+    early_stopping_enabled: bool = True
+    early_stopping_patience: int = 15  # Stop if no improvement for N epochs
+    early_stopping_metric: str = "diversity"  # Monitor diversity metric
+    
+    # REPRODUCIBILITY: Random seed for deterministic training
+    seed: int = 42  # MUST be set before any random operations!
     
     # Early stopping
     early_stopping_enabled: bool = True
@@ -144,10 +200,14 @@ class OutputConfig:
     save_synthetic_samples: bool = True
     save_visualizations: bool = True
     
-    # Verbose
+    # Verbose and logging
     verbose: int = 1  # 0=silent, 1=normal, 2=debug
-    log_interval: int = 5  # Log every N epochs
+    log_interval: int = 1  # Log every N epochs (default: all epochs)
     plot_interval: int = 10  # Generate plots every N epochs
+    
+    # Training metrics logging
+    track_gradient_stats: bool = True  # Log gradient norms per epoch
+    log_gradient_interval: int = 5  # Detailed gradient logging every N epochs
     
     def __post_init__(self):
         """Create output directories"""
@@ -174,12 +234,26 @@ class WGANConfig:
     description: str = ""
     seed: int = 42
     
+    def apply_seed(self):
+        """
+        Apply random seeds from configuration.
+        
+        CRITICAL: Must be called before ANY random operations!
+        
+        Sets seeds for:
+        - Python random module
+        - NumPy
+        - PyTorch (CPU and GPU)
+        """
+        set_random_seed(self.training.seed)
+        self.seed = self.training.seed  # Keep in sync
+    
     def to_dict(self) -> dict:
         """Convert config to dictionary"""
         return {
             "experiment_name": self.experiment_name,
             "description": self.description,
-            "seed": self.seed,
+            "seed": self.training.seed,
             "data": {
                 "dataset_mode": self.data.dataset_mode.value,
                 "train_split": self.data.train_split,
@@ -196,6 +270,7 @@ class WGANConfig:
                 "learning_rate": self.training.learning_rate,
                 "lambda_gp": self.training.lambda_gp,
                 "n_critic": self.training.n_critic,
+                "seed": self.training.seed,
                 "early_stopping_enabled": self.training.early_stopping_enabled,
                 "early_stopping_patience": self.training.early_stopping_patience,
             }

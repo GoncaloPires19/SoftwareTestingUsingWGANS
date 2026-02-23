@@ -4,12 +4,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.*;
 import utils.JUnitCSVLogger;
-import java.util.Arrays;
 import java.util.List;
 import java.io.*;
 import java.nio.file.*;
 
-public class ExampleTests {
+class ExampleTests {
 
     private TestDataLoader dataLoader;
 
@@ -33,11 +32,9 @@ public class ExampleTests {
             assertEquals(expected, a + b);
 
             JUnitCSVLogger.log(
-                Arrays.asList(
-                    (double) a,
-                    (double) b,
-                    (double) expected
-                )
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -57,11 +54,9 @@ public class ExampleTests {
             assertEquals(expected, a * b);
 
             JUnitCSVLogger.log(
-                Arrays.asList(
-                    (double) a,
-                    (double) b,
-                    (double) expected
-                )
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -149,11 +144,9 @@ public class ExampleTests {
             assertEquals(expected, a / b);
 
             JUnitCSVLogger.log(
-                Arrays.asList(
-                    (double) a,
-                    (double) b,
-                    (double) expected
-                )
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -173,11 +166,9 @@ public class ExampleTests {
             assertEquals(expected, a - b);
 
             JUnitCSVLogger.log(
-                Arrays.asList(
-                    (double) a,
-                    (double) b,
-                    (double) expected
-                )
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -197,11 +188,9 @@ public class ExampleTests {
             assertEquals(expected, a % b);
 
             JUnitCSVLogger.log(
-                Arrays.asList(
-                    (double) a,
-                    (double) b,
-                    (double) expected
-                )
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -221,11 +210,9 @@ public class ExampleTests {
             assertEquals(expected, Math.pow(a, b));
 
             JUnitCSVLogger.log(
-                Arrays.asList(
-                    (double) a,
-                    (double) b,
-                    expected
-                )
+                (double) a,
+                (double) b,
+                expected
             );
         }
     }
@@ -240,7 +227,9 @@ public class ExampleTests {
             assertEquals(expected, Math.sqrt(tc));
 
             JUnitCSVLogger.log(
-                Arrays.asList(tc, expected)
+                tc,
+                expected,
+                0.0
             );
         }
     }
@@ -259,7 +248,9 @@ public class ExampleTests {
             assertEquals(expected, Math.abs(value));
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) value, (double) expected)
+                (double) value,
+                (double) expected,
+                0.0
             );
         }
     }
@@ -279,7 +270,9 @@ public class ExampleTests {
             assertEquals(expected, Math.min(a, b));
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) a, (double) b, (double) expected)
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -299,7 +292,9 @@ public class ExampleTests {
             assertEquals(expected, Math.max(a, b));
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) a, (double) b, (double) expected)
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -318,7 +313,9 @@ public class ExampleTests {
             assertEquals(expected, a * a * a);
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) a, (double) expected)
+                (double) a,
+                (double) expected,
+                0.0
             );
         }
     }
@@ -337,7 +334,9 @@ public class ExampleTests {
             assertEquals(expected, a * a);
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) a, (double) expected)
+                (double) a,
+                (double) expected,
+                0.0
             );
         }
     }
@@ -357,7 +356,9 @@ public class ExampleTests {
             assertEquals(expected, (a + b) / 2, 0.0001);
 
             JUnitCSVLogger.log(
-                Arrays.asList(a, b, expected)
+                a,
+                b,
+                expected
             );
         }
     }
@@ -377,7 +378,9 @@ public class ExampleTests {
             assertEquals(expected, (part / total) * 100, 0.0001);
 
             JUnitCSVLogger.log(
-                Arrays.asList(part, total, expected)
+                part,
+                total,
+                expected
             );
         }
     }
@@ -397,7 +400,9 @@ public class ExampleTests {
             assertEquals(expected, a & b);
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) a, (double) b, (double) expected)
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -417,7 +422,9 @@ public class ExampleTests {
             assertEquals(expected, a | b);
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) a, (double) b, (double) expected)
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -437,7 +444,9 @@ public class ExampleTests {
             assertEquals(expected, a ^ b);
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) a, (double) b, (double) expected)
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -457,7 +466,9 @@ public class ExampleTests {
             assertEquals(expected, a << b);
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) a, (double) b, (double) expected)
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -477,7 +488,9 @@ public class ExampleTests {
             assertEquals(expected, a >> b);
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) a, (double) b, (double) expected)
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -501,7 +514,9 @@ public class ExampleTests {
             assertEquals(expected, result);
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) n, (double) expected)
+                (double) n,
+                (double) expected,
+                0.0
             );
         }
     }
@@ -521,7 +536,9 @@ public class ExampleTests {
             assertEquals(expected, result);
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) n, (double) expected)
+                (double) n,
+                (double) expected,
+                0.0
             );
         }
     }
@@ -542,7 +559,9 @@ public class ExampleTests {
             assertEquals(expected, result);
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) n, (double) expected)
+                (double) n,
+                (double) expected,
+                0.0
             );
         }
     }
@@ -562,7 +581,9 @@ public class ExampleTests {
             assertEquals(expected, gcd(a, b));
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) a, (double) b, (double) expected)
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -582,7 +603,9 @@ public class ExampleTests {
             assertEquals(expected, lcm(a, b));
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) a, (double) b, (double) expected)
+                (double) a,
+                (double) b,
+                (double) expected
             );
         }
     }
@@ -601,7 +624,9 @@ public class ExampleTests {
             assertEquals(expected, fibonacci(n));
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) n, (double) expected)
+                (double) n,
+                (double) expected,
+                0.0
             );
         }
     }
@@ -614,13 +639,13 @@ public class ExampleTests {
         for (String str : palindromes) {
             int result = isPalindrome(str) ? 1 : 0;
             assertEquals(1, result);
-            JUnitCSVLogger.log(Arrays.asList((double) result));
+            JUnitCSVLogger.log((double) result, 0.0, 0.0);
         }
 
         for (String str : nonPalindromes) {
             int result = isPalindrome(str) ? 1 : 0;
             assertEquals(0, result);
-            JUnitCSVLogger.log(Arrays.asList((double) result));
+            JUnitCSVLogger.log((double) result, 0.0, 0.0);
         }
     }
 
@@ -636,7 +661,9 @@ public class ExampleTests {
             assertEquals(expected, str.length());
 
             JUnitCSVLogger.log(
-                Arrays.asList((double) expected)
+                (double) expected,
+                0.0,
+                0.0
             );
         }
     }

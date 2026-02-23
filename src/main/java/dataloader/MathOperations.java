@@ -6,6 +6,10 @@ package dataloader;
  */
 public class MathOperations {
     
+    private MathOperations() {
+        // Private constructor to hide the implicit public one
+    }
+    
     /**
      * Calculate the sum of an array of integers.
      */
@@ -123,7 +127,8 @@ public class MathOperations {
         if (n == 1) {
             return 1;
         }
-        int a = 0, b = 1;
+        int a = 0;
+        int b = 1;
         for (int i = 2; i <= n; i++) {
             int temp = a + b;
             a = b;
