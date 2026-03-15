@@ -262,7 +262,7 @@ For questions or issues:
 ---
 
 **Author**: Gonçalo Pires  
-**University**: University of Covilhã  
+**University**: Universidade de Évora  
 **Year**: 2026  
 **License**: Academic Project  
 **Last Updated**: February 23, 2026
