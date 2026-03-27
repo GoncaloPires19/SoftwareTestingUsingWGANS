@@ -4,6 +4,7 @@ Analyzes training history and compares real vs synthetic test distributions
 """
 
 import sys
+import argparse
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -25,27 +26,27 @@ logger = logging.getLogger(__name__)
 class ExperimentalAnalysis:
     """Comprehensive training analysis and overfitting detection"""
     
-    def __init__(self):
-        self.output_dir = Path('outputs/experimental')
+    def __init__(self, training_history_path, real_data_path, synthetic_data_path, output_dir='outputs/experimental'):
+        self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
         # Load data
         try:
-            self.training_history = pd.read_csv('python/outputs/training_history.csv')
+            self.training_history = pd.read_csv(training_history_path)
             logger.info(f"✅ Loaded training history: {len(self.training_history)} epochs")
         except FileNotFoundError:
             logger.warning("⚠️  Training history not found")
             self.training_history = None
         
         try:
-            self.real_data = pd.read_csv('python/data/junit_data_cleaned_strict.csv', header=None, names=['methods', 'branches', 'statements'])
+            self.real_data = pd.read_csv(real_data_path, header=None, names=['methods', 'branches', 'statements'])
             logger.info(f"✅ Loaded real test data: {len(self.real_data)} samples")
         except FileNotFoundError:
             logger.error("❌ Real test data not found")
             self.real_data = None
             
         try:
-            self.synthetic_data = pd.read_csv('outputs/synthetic_samples.csv').iloc[:, :3]
+            self.synthetic_data = pd.read_csv(synthetic_data_path).iloc[:, :3]
             self.synthetic_data.columns = ['methods', 'branches', 'statements']
             logger.info(f"✅ Loaded synthetic data: {len(self.synthetic_data)} samples")
         except FileNotFoundError:
@@ -309,13 +310,14 @@ class ExperimentalAnalysis:
         logger.info(f"✅ Saved training analysis plot: {plot_path}")
         plt.close()
     
-    def save_report(self, training_analysis, overfitting_analysis, distribution_comparison, quality_score):
+    def save_report(self, training_analysis, overfitting_analysis, distribution_comparison, quality_score, coverage_analysis=None):
         """Save comprehensive report"""
         report = {
             'timestamp': datetime.now().isoformat(),
             'training_analysis': training_analysis,
             'overfitting_detection': overfitting_analysis,
             'distribution_comparison': distribution_comparison,
+            'coverage_metrics': coverage_analysis if coverage_analysis else {},
             'quality_score': quality_score,
             'recommendations': self.generate_recommendations(quality_score, overfitting_analysis)
         }
@@ -347,6 +349,166 @@ class ExperimentalAnalysis:
         
         return recommendations
     
+    def analyze_coverage_metrics(self):
+        """Analyze coverage metrics: methods, branches, statements"""
+        if self.real_data is None or self.synthetic_data is None:
+            logger.warning("⚠️  Cannot analyze coverage - data missing")
+            return {}
+        
+        logger.info("\n" + "="*90)
+        logger.info("📈 COVERAGE METRICS ANALYSIS")
+        logger.info("="*90)
+        
+        coverage_analysis = {
+            'real_stats': {},
+            'synthetic_stats': {},
+            'comparison': {},
+            'correlations': {},
+            'coverage_tiers': {},
+            'imbalance_patterns': {}
+        }
+        
+        feature_names = ['methods', 'branches', 'statements']
+        
+        # 1. Feature-level statistics
+        logger.info("\n  📊 FEATURE STATISTICS:\n")
+        
+        for feat in feature_names:
+            real_feat = self.real_data[feat].dropna()
+            syn_feat = self.synthetic_data[feat].dropna()
+            
+            # Calculate percentages (0-100% normalized by max)
+            real_max = real_feat.max()
+            real_pct = (real_feat / real_max * 100) if real_max > 0 else real_feat * 100
+            syn_pct = (syn_feat / real_max * 100) if real_max > 0 else syn_feat * 100
+            
+            coverage_analysis['real_stats'][feat] = {
+                'count': len(real_feat),
+                'min': float(real_feat.min()),
+                'max': float(real_feat.max()),
+                'mean': float(real_feat.mean()),
+                'median': float(real_feat.median()),
+                'std': float(real_feat.std()),
+                'pct_mean': float(real_pct.mean()),
+                'pct_std': float(real_pct.std())
+            }
+            
+            coverage_analysis['synthetic_stats'][feat] = {
+                'count': len(syn_feat),
+                'min': float(syn_feat.min()),
+                'max': float(syn_feat.max()),
+                'mean': float(syn_feat.mean()),
+                'median': float(syn_feat.median()),
+                'std': float(syn_feat.std()),
+                'pct_mean': float(syn_pct.mean()),
+                'pct_std': float(syn_pct.std())
+            }
+            
+            logger.info(f"  {feat.upper()}:")
+            logger.info(f"    Real data:   min={real_feat.min():.0f}, max={real_feat.max():.0f}, mean={real_feat.mean():.1f}±{real_feat.std():.1f}")
+            logger.info(f"    Synthetic:   min={syn_feat.min():.0f}, max={syn_feat.max():.0f}, mean={syn_feat.mean():.1f}±{syn_feat.std():.1f}")
+            logger.info(f"    Percentage:  Real {real_pct.mean():.1f}±{real_pct.std():.1f}%, Synthetic {syn_pct.mean():.1f}±{syn_pct.std():.1f}%")
+            
+            # Error percentage
+            mean_error = abs(syn_feat.mean() - real_feat.mean()) / (real_feat.mean() + 1e-8) * 100
+            logger.info(f"    Mean error:  {mean_error:.1f}%")
+        
+        # 2. Coverage tier categorization
+        logger.info("\n  📊 COVERAGE TIER DISTRIBUTION:\n")
+        logger.info("     Tier Definitions: Very Low (0-20%), Low (20-40%), Medium (40-60%), High (60-80%), Very High (80-100%)")
+        
+        for data_type, data in [('Real', self.real_data), ('Synthetic', self.synthetic_data)]:
+            logger.info(f"\n    {data_type} Data:")
+            tier_counts = {'Very Low': 0, 'Low': 0, 'Medium': 0, 'High': 0, 'Very High': 0}
+            
+            for feat in feature_names:
+                feat_data = data[feat].dropna()
+                feat_max = self.real_data[feat].max()
+                feat_pct = (feat_data / feat_max * 100) if feat_max > 0 else feat_data * 100
+                
+                # Categorize
+                low = np.sum(feat_pct < 20)
+                low_med = np.sum((feat_pct >= 20) & (feat_pct < 40))
+                med = np.sum((feat_pct >= 40) & (feat_pct < 60))
+                high = np.sum((feat_pct >= 60) & (feat_pct < 80))
+                very_high = np.sum(feat_pct >= 80)
+                
+                logger.info(f"      {feat:12s}: Very Low={low:3d} ({low/len(feat_pct)*100:5.1f}%) | " +
+                           f"Low={low_med:3d} ({low_med/len(feat_pct)*100:5.1f}%) | " +
+                           f"Medium={med:3d} ({med/len(feat_pct)*100:5.1f}%) | " +
+                           f"High={high:3d} ({high/len(feat_pct)*100:5.1f}%) | " +
+                           f"Very High={very_high:3d} ({very_high/len(feat_pct)*100:5.1f}%)")
+        
+        # 3. Correlation analysis
+        logger.info("\n  🔗 CORRELATION BETWEEN COVERAGE TYPES:\n")
+        
+        # Real data correlations
+        real_corr = self.real_data[feature_names].corr()
+        coverage_analysis['correlations']['real'] = real_corr.to_dict()
+        
+        logger.info("    Real Data Correlations:")
+        for i, feat1 in enumerate(feature_names):
+            for feat2 in feature_names[i+1:]:
+                corr_val = real_corr.loc[feat1, feat2]
+                logger.info(f"      {feat1} ↔ {feat2}: {corr_val:+.3f} {'(Strong +)' if corr_val > 0.7 else '(Strong -)' if corr_val < -0.7 else '(Moderate)' if abs(corr_val) > 0.3 else '(Weak)'}")
+        
+        # Synthetic data correlations
+        syn_corr = self.synthetic_data[feature_names].corr()
+        coverage_analysis['correlations']['synthetic'] = syn_corr.to_dict()
+        
+        logger.info("\n    Synthetic Data Correlations:")
+        for i, feat1 in enumerate(feature_names):
+            for feat2 in feature_names[i+1:]:
+                corr_val = syn_corr.loc[feat1, feat2]
+                logger.info(f"      {feat1} ↔ {feat2}: {corr_val:+.3f} {'(Strong +)' if corr_val > 0.7 else '(Strong -)' if corr_val < -0.7 else '(Moderate)' if abs(corr_val) > 0.3 else '(Weak)'}")
+        
+        # 4. Imbalance detection
+        logger.info("\n  ⚖️  COVERAGE IMBALANCE DETECTION:\n")
+        logger.info("     Imbalance = High coverage in one metric but low in another\n")
+        
+        for data_type, data in [('Real', self.real_data), ('Synthetic', self.synthetic_data)]:
+            imbalance_count = 0
+            imbalance_patterns = []
+            
+            feat_max = self.real_data[feature_names].max()
+            feat_pct = data[feature_names].div(feat_max) * 100
+            
+            # Find cases where one is high (>70%) and another is low (<30%)
+            for idx, row in feat_pct.iterrows():
+                highs = [f for f in feature_names if row[f] > 70]
+                lows = [f for f in feature_names if row[f] < 30]
+                
+                if highs and lows:
+                    imbalance_count += 1
+                    imbalance_patterns.append({
+                        'high': highs,
+                        'low': lows,
+                        'values': row.to_dict()
+                    })
+            
+            imbalance_pct = imbalance_count / len(data) * 100
+            logger.info(f"    {data_type}: {imbalance_count} samples ({imbalance_pct:.1f}%) with coverage imbalance")
+            
+            coverage_analysis['imbalance_patterns'][data_type] = {
+                'count': imbalance_count,
+                'percentage': imbalance_pct,
+                'examples': imbalance_patterns[:5]  # Show first 5 examples
+            }
+            
+            # Show patterns
+            if imbalance_patterns:
+                logger.info(f"      Top patterns in {data_type} data:")
+                pattern_types = {}
+                for pattern in imbalance_patterns:
+                    key = f"High {','.join(pattern['high'])} + Low {','.join(pattern['low'])}"
+                    pattern_types[key] = pattern_types.get(key, 0) + 1
+                
+                for pattern_type, count in sorted(pattern_types.items(), key=lambda x: x[1], reverse=True)[:5]:
+                    logger.info(f"        {pattern_type}: {count} samples ({count/len(imbalance_patterns)*100:.1f}%)")
+        
+        logger.info("\n" + "="*90)
+        return coverage_analysis
+    
     def run(self):
         """Run full experimental analysis"""
         logger.info("\n" + "█"*90)
@@ -359,10 +521,11 @@ class ExperimentalAnalysis:
             training_analysis = self.analyze_training_history()
             overfitting_analysis = self.detect_overfitting()
             distribution_comparison = self.compare_distributions()
+            coverage_analysis = self.analyze_coverage_metrics()
             quality_score = self.quality_score()
             
             self.generate_visualizations()
-            self.save_report(training_analysis, overfitting_analysis, distribution_comparison, quality_score)
+            self.save_report(training_analysis, overfitting_analysis, distribution_comparison, quality_score, coverage_analysis)
             
             logger.info("\n" + "="*90)
             logger.info("✅ EXPERIMENTAL ANALYSIS COMPLETE")
@@ -372,5 +535,21 @@ class ExperimentalAnalysis:
             logger.error(f"❌ Analysis failed: {e}", exc_info=True)
 
 if __name__ == '__main__':
-    analyzer = ExperimentalAnalysis()
+    parser = argparse.ArgumentParser(description='Run experimental analysis for any dataset pipeline run')
+    parser.add_argument('--training-history', type=str, required=True,
+                        help='Path to training_history.csv')
+    parser.add_argument('--real-data', type=str, required=True,
+                        help='Path to real dataset CSV (no header, 3 columns)')
+    parser.add_argument('--synthetic-data', type=str, required=True,
+                        help='Path to generated synthetic CSV')
+    parser.add_argument('--output-dir', type=str, default='outputs/experimental',
+                        help='Directory to write analysis artifacts')
+    args = parser.parse_args()
+
+    analyzer = ExperimentalAnalysis(
+        training_history_path=args.training_history,
+        real_data_path=args.real_data,
+        synthetic_data_path=args.synthetic_data,
+        output_dir=args.output_dir,
+    )
     analyzer.run()

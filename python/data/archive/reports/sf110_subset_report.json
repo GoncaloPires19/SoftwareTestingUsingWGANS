@@ -1,0 +1,11 @@
+{
+  "sf110_url": "https://www.evosuite.org/experimental-data/sf110/",
+  "links_found": 2,
+  "assets_downloaded": 2,
+  "candidate_files": 375,
+  "samples_after_cleaning": 43,
+  "projects_after_filter": 3,
+  "subset_projects": 10,
+  "strict_csv": "python/data/processed/sf110_subset_strict.csv",
+  "full_with_meta_csv": "python/data/processed/sf110_subset_with_meta.csv"
+}

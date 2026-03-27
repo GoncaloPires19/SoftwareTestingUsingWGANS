@@ -51,61 +51,119 @@ SoftwareTestingUsingWGANS/
     └── copilot-instructions.md    # AI assistant instructions
 ```
 
-## 🚀 Quick Start
+## 🚀 Quick Start (5 Commands)
 
-### 1. Setup Environment
-
+### Setup
 ```bash
-# Clone repository
 git clone https://github.com/GoncaloPires19/SoftwareTestingUsingWGANS.git
 cd SoftwareTestingUsingWGANS
-
-# Install Python dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Full Pipeline Execution
-
+### Full Pipeline
 ```bash
-# Step 1: Run Java tests (generates test metrics)
+# 1. Generate Java test metrics
 mvn clean test
 
-# Step 2: Train WGAN model with balanced profile
-python python/scripts/train_basic_profiles.py --profile balanced
+# 2. Train WGAN model (50 epochs)
+python python/scripts/train_basic_profiles.py --profile balanced --epochs 50
 
-# Step 3: Generate synthetic tests
-python python/scripts/generate_synthetic.py --num_samples 500
+# 3. Generate 1000 synthetic tests
+python python/scripts/generate_synthetic.py
 
-# Step 4: Analyze results (optional)
+# 4. Analyze quality
 python python/scripts/experimental_analysis.py
+
+# 5. View results
+# Outputs: outputs/*/synthetic_samples_best.csv
+#          outputs/experimental/hypothesis_comparison.json
 ```
 
-**Training Profiles Available:**
-- `aggressive`: Fast training (50 epochs)
-- `balanced`: Recommended for production (80 epochs)
-- `experimental`: Advanced configuration (80 epochs)
-- `conservative`: Maximum stability (150 epochs)
+**Total Runtime:** ~5 minutes (CPU)
 
-✅ **Expected Results**: 
-- 193/193 JUnit tests passing
-- Model trained successfully
-- 500 synthetic tests generated
-- Validation metrics: ~75% quality, LOW overfitting
+### Objective Performance Protocol (WGAN Profiles)
+```bash
+# 1. Run repeated experiments (example: 10 repetitions x 3 profiles)
+python python/scripts/replicate_and_compare.py \
+        --profiles balanced optimized experimental \
+        --runs 10 \
+        --device cpu \
+        --real-data python/data/junit_data_cleaned_strict.csv
 
-## 📈 Key Results
+# 2. Build static dashboard (replace with your generated aggregate folder)
+python python/scripts/generate_quality_dashboard.py \
+        --aggregate-dir outputs/experimental/objective_wgan_YYYYMMDD_HHMMSS
+```
 
-| Metric | Value |
-|--------|-------|
-| **Total JUnit Tests** | 193 |
-| **Synthetic Samples Generated** | 500 |
-| **Training Epochs** | 50 |
-| **Overfitting Risk** | ✅ LOW (gap: 0.164) |
-| **Average Synthetic Quality** | 74.91% |
-| **Model Status** | ✅ PRODUCTION READY |
+Generated artifacts:
+- `MASTER_COMPARISON.csv`: per-run metrics (quality, convergence, coverage, KS, Wasserstein)
+- `PROFILE_SUMMARY.csv`: mean, std, CV, and 95% CI per profile
+- `PAIRWISE_STAT_TESTS.csv`: Mann-Whitney + KS tests between profiles
+- `quality_dashboard/*.png`: boxplot, timeline, heatmap for visual comparison
+
+---
+
+## 📖 Understanding the System
+
+**New to the project?** Read these in order:
+
+1. **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Visual pipeline explanation
+   - Shows how data flows from Java tests → CNN networks → synthetic tests
+   - Explains the 5 main layers of the system
+   - ~15 minutes to understand the flow
+
+2. **[ESSENTIAL_5_FILES.md](docs/ESSENTIAL_5_FILES.md)** - Core code walkthrough
+   - The 5 files that contain 95% of the logic
+   - Understand what each file does
+   - Hands-on exercises to verify understanding
+   - ~95 minutes (read sequentially)
+
+3. **Advanced Guides** (Optional):
+   - [QUICK_START.md](docs/QUICK_START.md) - Quick reference
+   - [DATA_SCHEMA.md](docs/DATA_SCHEMA.md) - Data format specs
+   - [CLEANUP_GUIDE.md](docs/CLEANUP_GUIDE.md) - Project organization
+
+---
+
+## 📊 Latest Results
+
+**Hypothesis Validation: SF110 vs Combined Dataset** ✅
+
+| Metric | SF110-Only | **H2 Combined** | Improvement |
+|--------|-----------|-----------------|------------|
+| **Quality Score** | 74.7% | **79.2%** ✅ | +4.5pp |
+| **Methods Quality** | 80.5% | **86.9%** | +6.4pp |
+| **Dataset Size** | 125 samples | **513 samples** | +310% |
+| **Coverage Range** | [4-44] | **[0-256]** | 4x expansion |
+| **Synthetic Samples** | 1000 | **1000** | - |
+| **Training Stability** | Good | **Excellent** | ✅ |
+
+**Conclusion**: Combining EvoSuite SF110 with JUnit local data produces **significantly better synthetic tests** with superior quality and diversity. 
+
+**Key Findings**:
+- ✅ Synthetic data quality improved from 74.7% to 79.2%
+- ✅ Better generalization across coverage types
+- ✅ Higher variance in generated samples (more realistic)
+- ✅ Strong feature correlations maintained (0.80+)
+
+See [hypothesis_comparison.json](outputs/experimental/hypothesis_comparison.json) for complete analysis.
+
+---
+
+## 📈 System Performance
+
+| Component | Status | Metric |
+|-----------|--------|--------|
+| **Java Tests** | ✅ PASS | 193/193 passing |
+| **WGAN Training** | ✅ COMPLETE | 50 epochs @ 79.2% quality |
+| **Synthetic Generation** | ✅ COMPLETE | 1000 test samples |
+| **Analysis** | ✅ COMPLETE | Distribution, overfitting, correlations |
+| **Reproducibility** | ✅ VERIFIED | Random seed controlled, stats saved |
+| **Documentation** | ✅ COMPLETE | 5 guides + thesis-ready narratives |
+
+---
 
 ## 📚 Documentation
-
-### JUnit Test Suite (193 total)
 
 | Test Class | Count | Type |
 |---|---|---|

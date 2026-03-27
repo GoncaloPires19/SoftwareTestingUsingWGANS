@@ -20,6 +20,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _json_default(value):
+    """JSON serializer for numpy/pandas objects used in validation reports."""
+    if isinstance(value, np.integer):
+        return int(value)
+    if isinstance(value, np.floating):
+        return float(value)
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, np.dtype):
+        return str(value)
+    return str(value)
+
+
 class DataValidator:
     """
     Comprehensive data validation and integrity checking.
@@ -288,7 +301,7 @@ class DataValidator:
         """Save validation report to JSON"""
         report_path = self.validation_log_dir / filename
         with open(report_path, 'w') as f:
-            json.dump(report, f, indent=2)
+            json.dump(report, f, indent=2, default=_json_default)
         logger.info(f"📄 Report saved: {report_path}")
         return report_path
     

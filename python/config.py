@@ -130,23 +130,23 @@ class ModelConfig:
 @dataclass
 class TrainingConfig:
     """
-    Training hyperparameters for WGAN-GP training - STABLE VERSION.
+    Training hyperparameters for WGAN-GP training - OPTIMIZED VERSION.
     
-    Tuned for small datasets (<500 samples) to prevent overfitting and mode collapse.
+    Tuned to fix mode collapse and feature imbalance detected in v1.
     REPRODUCIBILITY: seed MUST be set before training begins!
     """
     # Training configuration
-    epochs: int = 50  # Reduced from 100 - sweet spot for small datasets
-    batch_size: int = 16  # Reduced from 32 - more updates per epoch, less memory
+    epochs: int = 100  # Increased from 50 - more iterations for better convergence
+    batch_size: int = 8  # Reduced from 16 - smaller batches, more frequent updates
     
     # Learning rates - CRITICAL for stability
-    learning_rate: float = 0.00005  # Reduced from 0.0002 - slower, more stable learning
+    learning_rate: float = 0.00002  # Reduced from 0.00005 - slower, smoother learning curve
     beta1: float = 0.5
     beta2: float = 0.999
     
     # WGAN-GP specific
-    lambda_gp: float = 5.0  # Reduced from 10 - less strict Lipschitz constraint
-    n_critic: int = 7  # Increased from 5 - better critic training per generator step
+    lambda_gp: float = 10.0  # Increased from 5.0 - stricter Lipschitz constraint to prevent mode collapse
+    n_critic: int = 10  # Increased from 7 - more critic iterations for feature balance
     
     # Early stopping parameters
     early_stopping_enabled: bool = True
@@ -156,9 +156,9 @@ class TrainingConfig:
     # REPRODUCIBILITY: Random seed for deterministic training
     seed: int = 42  # MUST be set before any random operations!
     
-    # Early stopping
-    early_stopping_enabled: bool = True
-    early_stopping_patience: int = 10
+    # Early stopping - disabled for full training
+    early_stopping_enabled: bool = False  # Full training run without early stopping
+    early_stopping_patience: int = 20
     early_stopping_metric: MetricType = MetricType.DIVERSITY
     early_stopping_threshold: float = 0.01  # Minimum improvement
     

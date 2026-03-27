@@ -90,6 +90,12 @@ python/scripts/models/
 logs/
 python/logs/
 *.log
+*.err
+*.out
+err_*.txt
+log_*.txt
+run_output.txt
+training_out.txt
 
 # ===== OS =====
 .DS_Store

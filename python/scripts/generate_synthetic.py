@@ -154,7 +154,7 @@ class SyntheticTestGenerator:
         Save synthetic samples to CSV
         
         Args:
-            synthetic_features: (N, 3) array of features (methods, branches, statements)
+            synthetic_features: (N, 3 or 4) array of features (methods, branches, statements, [method_coverage])
             output_path: Where to save CSV
             norm_stats: Normalization statistics for denormalization
             denormalize: Whether to denormalize features
@@ -165,11 +165,13 @@ class SyntheticTestGenerator:
         if denormalize:
             features = self.denormalize_features(features, norm_stats)
         
-        # Create DataFrame with 3 features
-        df = pd.DataFrame(
-            features,
-            columns=["methods", "branches", "statements"]
-        )
+        # Create DataFrame with 3 or 4 features depending on output
+        if features.shape[1] == 4:
+            columns = ["methods", "branches", "statements", "method_coverage"]
+        else:
+            columns = ["methods", "branches", "statements"]
+        
+        df = pd.DataFrame(features, columns=columns)
         
         # Add metadata
         df["test_id"] = [f"synthetic_{i:06d}" for i in range(len(df))]
@@ -184,6 +186,8 @@ class SyntheticTestGenerator:
         logger.info(f"   Features: methods={df['methods'].mean():.1f} ± {df['methods'].std():.1f}")
         logger.info(f"             branches={df['branches'].mean():.1f} ± {df['branches'].std():.1f}")
         logger.info(f"             statements={df['statements'].mean():.1f} ± {df['statements'].std():.1f}")
+        if "method_coverage" in df.columns:
+            logger.info(f"             method_coverage={df['method_coverage'].mean():.4f} ± {df['method_coverage'].std():.4f}")
 
 
 def main():
