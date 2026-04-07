@@ -56,8 +56,8 @@ def main():
         (".gitignore", "Git Ignore Config"),
         ("python/scripts/tools/cleanup.py", "Cleanup Tool"),
         ("python/scripts/tools/monitor_training.py", "Monitor Tool"),
-        ("python/src/model.py", "WGAN Model"),
-        ("python/src/config.py", "Configuration"),
+        ("python/model.py", "WGAN Model"),
+        ("python/config.py", "Configuration"),
     ]
     
     for filepath, desc in essential_files:
@@ -90,16 +90,20 @@ def main():
     print("\n📊 DATA STRUCTURES CHECK")
     print("-" * 70)
     
-    data_dirs = [
+    required_data_dirs = [
         ("data/raw", "Raw Data Directory"),
         ("data/processed", "Processed Data Directory"),
-        ("python/data/raw", "Python Raw Data"),
-        ("python/data/processed", "Python Processed Data"),
+        ("python/data", "Python Data Directory"),
         ("outputs", "Outputs Directory"),
         ("python/scripts/tools", "Tools Directory (NEW)"),
     ]
-    
-    for dirpath, desc in data_dirs:
+
+    optional_data_dirs = [
+        ("python/data/raw", "Python Raw Data (Optional)"),
+        ("python/data/processed", "Python Processed Data (Optional)"),
+    ]
+
+    for dirpath, desc in required_data_dirs:
         checks_total += 1
         path = Path(dirpath)
         exists = path.exists()
@@ -107,6 +111,12 @@ def main():
         print(f"{status} {desc}: {dirpath}")
         if exists:
             checks_passed += 1
+
+    for dirpath, desc in optional_data_dirs:
+        path = Path(dirpath)
+        exists = path.exists()
+        status = "✅" if exists else "⚠️"
+        print(f"{status} {desc}: {dirpath}")
     
     # 4. Check .gitignore Rules
     print("\n🔒 GITIGNORE SECURITY CHECK")
