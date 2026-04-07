@@ -275,6 +275,64 @@ class AdvancedValidationTests {
         }
     }
 
+    // ============== MUTATION ALIGNMENT ==============
+    @Test
+    void testMutationAlignmentMathOperationsValidation() {
+        assertThrows(IllegalArgumentException.class, () -> MathOperations.max(new int[0]));
+        assertThrows(IllegalArgumentException.class, () -> MathOperations.min(new int[0]));
+        assertThrows(IllegalArgumentException.class, () -> MathOperations.factorial(-1));
+        assertThrows(IllegalArgumentException.class, () -> MathOperations.fibonacci(-1));
+
+        assertEquals(0, MathOperations.sum(null));
+        assertNull(MathOperations.reverseArray(null));
+        assertNull(MathOperations.bubbleSort(null));
+        assertEquals(1, MathOperations.gcd(17, 13));
+    }
+
+    @Test
+    void testMutationAlignmentTestDataLoaderValidation() {
+        TestDataLoader loader = new TestDataLoader();
+        loader.collectTestData("a", "b");
+        loader.collectTestData(1, true);
+
+        assertEquals(2, loader.getCollectedDataSize());
+        assertEquals("a,b", loader.getCollectedData(0));
+        assertEquals("1,true", loader.getCollectedData(1));
+        assertNull(loader.getCollectedData(-1));
+        assertNull(loader.getCollectedData(2));
+    }
+
+    @Test
+    void testMutationCoreCoverageMathOperationsValidation() {
+        assertEquals(0, MathOperations.sum(new int[0]));
+        assertEquals(6, MathOperations.sum(new int[]{1, 2, 3}));
+
+        assertEquals(9, MathOperations.max(new int[]{1, 9, 3, 2}));
+        assertEquals(-10, MathOperations.min(new int[]{-10, -5, -1, -8}));
+
+        assertTrue(MathOperations.isPrime(97));
+        assertFalse(MathOperations.isPrime(100));
+
+        assertEquals(1, MathOperations.factorial(0));
+        assertEquals(720, MathOperations.factorial(6));
+
+        assertEquals(0, MathOperations.fibonacci(0));
+        assertEquals(13, MathOperations.fibonacci(7));
+
+        assertEquals(6, MathOperations.gcd(54, 24));
+
+        assertTrue(MathOperations.isPerfectSquare(81));
+        assertFalse(MathOperations.isPerfectSquare(82));
+        assertFalse(MathOperations.isPerfectSquare(-1));
+
+        assertTrue(MathOperations.isPalindrome("RaceCar"));
+        assertFalse(MathOperations.isPalindrome("mutation"));
+
+        assertArrayEquals(new int[]{3, 2, 1}, MathOperations.reverseArray(new int[]{1, 2, 3}));
+        assertArrayEquals(new int[]{1, 2, 3, 4}, MathOperations.bubbleSort(new int[]{4, 3, 2, 1}));
+        assertArrayEquals(new int[]{5}, MathOperations.bubbleSort(new int[]{5}));
+    }
+
     // ============== HELPER METHODS ==============
 
     private int safeDivide(int a, int b) {

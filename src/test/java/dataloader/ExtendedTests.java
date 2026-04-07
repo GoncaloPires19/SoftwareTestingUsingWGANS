@@ -359,6 +359,52 @@ class ExtendedTests {
         String str = null;
         assertNull(str);
     }
+
+    // ============ MUTATION ALIGNMENT ============
+
+    @Test
+    void testMutationAlignmentMathOperationsExtended() {
+        assertEquals(15, MathOperations.sum(new int[]{1, 2, 3, 4, 5}));
+        assertEquals(9, MathOperations.max(new int[]{1, 5, 9, 3}));
+        assertEquals(1, MathOperations.min(new int[]{1, 5, 9, 3}));
+        assertTrue(MathOperations.isPalindrome("level"));
+        assertArrayEquals(new int[]{1, 2, 5, 8, 9}, MathOperations.bubbleSort(new int[]{5, 2, 8, 1, 9}));
+    }
+
+    @Test
+    void testMutationAlignmentTestDataLoaderExtended() {
+        TestDataLoader loader = new TestDataLoader();
+        loader.collectTestData(100, 200, 300);
+
+        assertEquals(1, loader.getCollectedDataSize());
+        assertEquals("100,200,300", loader.getCollectedData(0));
+        assertNotNull(loader.getAllCollectedData());
+    }
+
+    @Test
+    void testMutationCoreCoverageMathOperationsExtended() {
+        assertEquals(-15, MathOperations.sum(new int[]{-1, -2, -3, -4, -5}));
+
+        assertEquals(100, MathOperations.max(new int[]{-50, 0, 100, 25}));
+        assertEquals(-50, MathOperations.min(new int[]{-50, 0, 100, 25}));
+
+        assertTrue(MathOperations.isPrime(101));
+        assertFalse(MathOperations.isPrime(1));
+
+        assertEquals(24, MathOperations.factorial(4));
+        assertEquals(8, MathOperations.fibonacci(6));
+        assertEquals(5, MathOperations.gcd(15, 10));
+
+        assertTrue(MathOperations.isPerfectSquare(16));
+        assertFalse(MathOperations.isPerfectSquare(15));
+
+        assertTrue(MathOperations.isPalindrome("a b a"));
+        assertFalse(MathOperations.isPalindrome("hello"));
+
+        assertArrayEquals(new int[]{5, 4, 3, 2, 1}, MathOperations.reverseArray(new int[]{1, 2, 3, 4, 5}));
+        assertArrayEquals(new int[]{1, 2, 5, 8, 9}, MathOperations.bubbleSort(new int[]{5, 2, 8, 1, 9}));
+        assertArrayEquals(new int[]{1, 2, 3, 4, 5}, MathOperations.bubbleSort(new int[]{1, 2, 3, 4, 5}));
+    }
     
     @Test
     void testObjectEquality() {

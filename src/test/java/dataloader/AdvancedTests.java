@@ -313,6 +313,35 @@ class AdvancedTests {
         }
     }
 
+    // ============== MUTATION ALIGNMENT ==============
+    @Test
+    void testMutationAlignmentMathOperations() {
+        assertEquals(6, MathOperations.sum(new int[]{1, 2, 3}));
+        assertEquals(5, MathOperations.max(new int[]{1, 5, 3}));
+        assertEquals(1, MathOperations.min(new int[]{1, 5, 3}));
+        assertTrue(MathOperations.isPrime(13));
+        assertFalse(MathOperations.isPrime(12));
+        assertEquals(120, MathOperations.factorial(5));
+        assertEquals(8, MathOperations.fibonacci(6));
+        assertEquals(3, MathOperations.gcd(9, 6));
+        assertTrue(MathOperations.isPerfectSquare(49));
+        assertFalse(MathOperations.isPerfectSquare(50));
+        assertTrue(MathOperations.isPalindrome("racecar"));
+        assertArrayEquals(new int[]{3, 2, 1}, MathOperations.reverseArray(new int[]{1, 2, 3}));
+        assertArrayEquals(new int[]{1, 2, 3}, MathOperations.bubbleSort(new int[]{3, 2, 1}));
+    }
+
+    @Test
+    void testMutationAlignmentTestDataLoader() {
+        TestDataLoader loader = new TestDataLoader();
+        loader.collectTestData(10, 20, 30);
+
+        assertEquals(1, loader.getCollectedDataSize());
+        assertEquals("10,20,30", loader.getCollectedData(0));
+        assertNull(loader.getCollectedData(1));
+        assertEquals(1, loader.getAllCollectedData().size());
+    }
+
     // ============== HELPER METHODS ==============
 
     private int[] bubbleSort(int[] arr) {

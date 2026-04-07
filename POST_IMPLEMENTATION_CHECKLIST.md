@@ -1,13 +1,13 @@
-# ✅ Checklist Pós-Implementação
+#  Checklist Pós-Implementação
 
-## 🎯 Objetivo
+##  Objetivo
 Verificar que toda a otimização foi bem-sucedida e que o repositório está pronto para uso.
 
 ---
 
 ## 📋 Checklist de Validação
 
-### 1. **Limpeza de Ficheiros** ✅
+### 1. **Limpeza de Ficheiros** 
 - [ ] Verificar que `err.txt` foi removido
   ```bash
   Test-Path "err.txt"  # Deve retornar False
@@ -26,7 +26,7 @@ Get-ChildItem -Path . -File | Where-Object {$_.Name -match "(err|log).*\.(txt|er
 
 ---
 
-### 2. **Atualização de Dependências** ✅
+### 2. **Atualização de Dependências** 
 - [ ] Verificar que `scipy` foi adicionado a `requirements.txt`
   ```bash
   Select-String "scipy" requirements.txt
@@ -44,7 +44,7 @@ Get-ChildItem -Path . -File | Where-Object {$_.Name -match "(err|log).*\.(txt|er
 
 ---
 
-### 3. **Reorganização de Scripts** ✅
+### 3. **Reorganização de Scripts** 
 - [ ] Verificar que `python/scripts/tools/cleanup.py` existe
   ```bash
   Test-Path "python/scripts/tools/cleanup.py"  # True
@@ -55,12 +55,12 @@ Get-ChildItem -Path . -File | Where-Object {$_.Name -match "(err|log).*\.(txt|er
   ```
 - [ ] Verificar que scripts foram removidos da raiz
   ```bash
-  ls cleanup.py monitor_training.py 2>/dev/null || echo "✅ Removidos da raiz"
+  ls cleanup.py monitor_training.py 2>/dev/null || echo " Removidos da raiz"
   ```
 
 ---
 
-### 4. **Atualização de GitIgnore** ✅
+### 4. **Atualização de GitIgnore** 
 - [ ] Abrir `.gitignore` e verificar as novas regras
   ```bash
   Select-String "*.err|*.out|err_.*|log_.*" .gitignore
@@ -73,19 +73,19 @@ Get-ChildItem -Path . -File | Where-Object {$_.Name -match "(err|log).*\.(txt|er
 
 ---
 
-### 5. **Validação Automática** ✅
+### 5. **Validação Automática** 
 - [ ] Executar script de validação
   ```bash
   python validate_refactoring.py
   ```
 - [ ] Verificar que resultado é **27/29 ou melhor**
   ```
-  Esperado: ✅ 27/29 checks passed (93.1%)
+  Esperado:  27/29 checks passed (93.1%)
   ```
 
 ---
 
-### 6. **Documentação** ✅
+### 6. **Documentação** 
 - [ ] Verificar que `REFACTORING_LOG.md` foi criado
   ```bash
   Test-Path "REFACTORING_LOG.md"  # True
@@ -101,12 +101,12 @@ Get-ChildItem -Path . -File | Where-Object {$_.Name -match "(err|log).*\.(txt|er
 
 ---
 
-### 7. **Funcionalidade de Treino** ✅
+### 7. **Funcionalidade de Treino** 
 - [ ] Testar que scripts Python ainda são importáveis
   ```bash
-  python -c "from python.config import ModelConfig; print('✅ Config OK')"
-  python -c "from python.model import Generator; print('✅ Model OK')"
-  python -c "from python.junit_datasets import JunitDataset; print('✅ Dataset OK')"
+  python -c "from python.config import ModelConfig; print(' Config OK')"
+  python -c "from python.model import Generator; print(' Model OK')"
+  python -c "from python.junit_datasets import JunitDataset; print(' Dataset OK')"
   ```
 
 - [ ] Testar que Maven build ainda funciona
@@ -117,7 +117,7 @@ Get-ChildItem -Path . -File | Where-Object {$_.Name -match "(err|log).*\.(txt|er
 
 ---
 
-### 8. **Estrutura de Diretórios** ✅
+### 8. **Estrutura de Diretórios** 
 - [ ] Verificar existência de `python/scripts/tools/`
   ```bash
   Test-Path "python/scripts/tools"  # True
@@ -134,7 +134,7 @@ Get-ChildItem -Path . -File | Where-Object {$_.Name -match "(err|log).*\.(txt|er
 
 ---
 
-### 9. **Git Status** ✅
+### 9. **Git Status** 
 - [ ] Verificar que git retorna status limpo após commit
   ```bash
   git status
@@ -147,7 +147,7 @@ Get-ChildItem -Path . -File | Where-Object {$_.Name -match "(err|log).*\.(txt|er
 
 ---
 
-### 10. **Reprodutibilidade** ✅
+### 10. **Reprodutibilidade** 
 - [ ] Executar quick test do sistema
   ```bash
   python python/test_system.py
@@ -161,7 +161,7 @@ Get-ChildItem -Path . -File | Where-Object {$_.Name -match "(err|log).*\.(txt|er
 
 ---
 
-## 🚀 Checklist de Próximos Passos
+##  Checklist de Próximos Passos
 
 ### Imediato (Hoje)
 - [ ] Concluir todas as verificações acima
@@ -187,15 +187,15 @@ Get-ChildItem -Path . -File | Where-Object {$_.Name -match "(err|log).*\.(txt|er
 
 ---
 
-## 📊 Critério de Sucesso
+##  Critério de Sucesso
 
-✅ **SUCESSO** se:
+ **SUCESSO** se:
 - Todos os 10 items acima estão checked
 - `validate_refactoring.py` retorna 27/29 ou melhor
 - Nenhum erro durante testes de import
 - Maven compila sem erros
 
-❌ **FALHA** se:
+ **FALHA** se:
 - Algum dos ficheiros limpados reaparece (exceto em archivos git)
 - scipy não importa
 - Structura de diretórios foi alterada incorretamente

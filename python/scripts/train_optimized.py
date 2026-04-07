@@ -124,8 +124,8 @@ class WGANGPTrainer:
                     lambda_gp=self.config.lambda_gp
                 )
                 
-                # Total critic loss
-                total_critic_loss = critic_loss + self.config.lambda_gp * gp
+                # compute_gradient_penalty already applies lambda_gp internally.
+                total_critic_loss = critic_loss + gp
                 
                 total_critic_loss.backward()
                 self.c_optimizer.step()

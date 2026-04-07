@@ -100,6 +100,28 @@ class ExampleTests {
     }
 
     @Test
+    void testGetCollectedDataOutOfBounds() {
+        dataLoader.collectTestData(10, 20, 30);
+
+        assertNull(dataLoader.getCollectedData(-1));
+        assertNull(dataLoader.getCollectedData(1));
+    }
+
+    @Test
+    void testGetAllCollectedDataReturnsDefensiveCopy() {
+        dataLoader.collectTestData("a", "b");
+        dataLoader.collectTestData("c", "d");
+
+        List<String> exported = dataLoader.getAllCollectedData();
+        assertEquals(2, exported.size());
+        assertEquals("a,b", exported.get(0));
+        assertEquals("c,d", exported.get(1));
+
+        exported.clear();
+        assertEquals(2, dataLoader.getCollectedDataSize());
+    }
+
+    @Test
     void testExportToCSV() throws IOException {
         String testFile = "test_export.csv";
         dataLoader.collectTestData(100, 200, 300);
@@ -666,6 +688,52 @@ class ExampleTests {
                 0.0
             );
         }
+    }
+
+    @Test
+    void testMutationAlignmentMathOperationsExample() {
+        assertEquals(0, MathOperations.sum(null));
+        assertEquals(6, MathOperations.sum(new int[]{1, 2, 3}));
+
+        assertEquals(9, MathOperations.max(new int[]{1, 5, 9, 3}));
+        assertEquals(1, MathOperations.min(new int[]{1, 5, 9, 3}));
+
+        assertTrue(MathOperations.isPrime(13));
+        assertFalse(MathOperations.isPrime(12));
+
+        assertEquals(120, MathOperations.factorial(5));
+        assertThrows(IllegalArgumentException.class, () -> MathOperations.factorial(-1));
+
+        assertEquals(8, MathOperations.fibonacci(6));
+        assertThrows(IllegalArgumentException.class, () -> MathOperations.fibonacci(-1));
+
+        assertEquals(3, MathOperations.gcd(9, 6));
+
+        assertTrue(MathOperations.isPerfectSquare(49));
+        assertFalse(MathOperations.isPerfectSquare(50));
+
+        assertTrue(MathOperations.isPalindrome("A man, a plan, a canal: Panama"));
+        assertFalse(MathOperations.isPalindrome("software testing"));
+
+        assertArrayEquals(new int[]{3, 2, 1}, MathOperations.reverseArray(new int[]{1, 2, 3}));
+        assertArrayEquals(new int[]{1, 2, 3}, MathOperations.bubbleSort(new int[]{3, 2, 1}));
+    }
+
+    @Test
+    void testMutationAlignmentTestDataLoaderExample() {
+        TestDataLoader loader = new TestDataLoader();
+        loader.collectTestData(10, 20, 30);
+        loader.collectTestData("alpha", true);
+
+        assertEquals(2, loader.getCollectedDataSize());
+        assertEquals("10,20,30", loader.getCollectedData(0));
+        assertEquals("alpha,true", loader.getCollectedData(1));
+        assertNull(loader.getCollectedData(-1));
+        assertNull(loader.getCollectedData(2));
+
+        List<String> copy = loader.getAllCollectedData();
+        copy.clear();
+        assertEquals(2, loader.getCollectedDataSize());
     }
 
     // Helper methods

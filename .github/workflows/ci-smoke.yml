@@ -1,0 +1,36 @@
+name: CI Smoke
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Validate repository structure
+        run: python validate_refactoring.py
+
+      - name: Validate dataset prerequisites
+        run: python python/scripts/validate_before_training.py --data-path python/data/junit_data_cleaned_strict.csv
+
+      - name: Java build smoke check
+        run: mvn -B -q -DskipTests test-compile

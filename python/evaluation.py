@@ -437,8 +437,8 @@ class EvaluationReport:
 def evaluate_experiment(name: str,
                        coverage_dir: str = "target/surefire-reports",
                        real_data_path: str = "python/data/junit_data.csv",
-                       synthetic_data_path: str = "python/outputs/synthetic_tests.csv",
-                       output_dir: str = "python/outputs/evaluation") -> Dict:
+                       synthetic_data_path: str = "outputs/synthetic_samples.csv",
+                       output_dir: str = "outputs/evaluation") -> Dict:
     """
     Complete evaluation pipeline for an experiment
     """
@@ -455,12 +455,28 @@ def evaluate_experiment(name: str,
     
     diversity = DiversityAnalyzer.analyze_dataset(real_data)
     dataset_comparison = DatasetComparator.compare_datasets(real_data, synthetic_data)
+
+    mean_diff = dataset_comparison["comparison"]["mean_difference"]
+    real_stats = dataset_comparison["real"]["statistics"]
+
+    feature_scores = []
+    for feat_name, diff in mean_diff.items():
+        denom = max(float(real_stats.get(f"{feat_name}_mean", 0.0)), 1e-8)
+        feature_scores.append(max(0.0, 1.0 - (float(diff) / denom)))
+
+    synthetic_quality_score = float(np.mean(feature_scores)) if feature_scores else 0.0
+
+    methods_mean = float(dataset_comparison["synthetic"]["statistics"].get("methods_mean", 0.0))
+    branches_mean = float(dataset_comparison["synthetic"]["statistics"].get("branches_mean", 0.0))
+    statements_mean = float(dataset_comparison["synthetic"]["statistics"].get("statements_mean", 0.0))
+
+    assertion_rate = float(min(1.0, branches_mean / max(methods_mean, 1.0)))
     
-    # Quality metrics (basic)
+    # Quality metrics (computed from dataset alignment + synthetic distribution)
     quality = QualityMetrics(
-        synthetic_quality_score=0.75,  # placeholder
-        assertion_rate=0.92,
-        test_complexity=23.5,
+        synthetic_quality_score=synthetic_quality_score,
+        assertion_rate=assertion_rate,
+        test_complexity=statements_mean,
         method_mean=float(real_data.iloc[:, 0].mean()),
         branch_mean=float(real_data.iloc[:, 1].mean()) if real_data.shape[1] > 1 else 0.0,
         statement_mean=float(real_data.iloc[:, 2].mean()) if real_data.shape[1] > 2 else 0.0
@@ -477,7 +493,7 @@ def evaluate_experiment(name: str,
     )
     
     # Save
-    filepath = report_gen.save_report(report, f"evaluation_{name}.json")
+    report_gen.save_report(report, f"evaluation_{name}.json")
     
     return report
 

@@ -264,6 +264,20 @@ class MathOperationsTests {
         int[] expected = {1, 2, 3, 4, 5};
         assertArrayEquals(expected, MathOperations.bubbleSort(input));
     }
+
+    @Test
+    void testBubbleSortSingleElement() {
+        int[] input = {42};
+        int[] expected = {42};
+        assertArrayEquals(expected, MathOperations.bubbleSort(input));
+    }
+
+    @Test
+    void testBubbleSortTwoElements() {
+        int[] input = {2, 1};
+        int[] expected = {1, 2};
+        assertArrayEquals(expected, MathOperations.bubbleSort(input));
+    }
     
     @Test
     void testBubbleSortReverse() {

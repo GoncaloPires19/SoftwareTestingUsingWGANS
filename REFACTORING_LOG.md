@@ -2,22 +2,22 @@
 **Data:** 2026-03-23
 **Objetivos:** Consolidar estrutura, remover redundâncias, melhorar organização
 
-## ✅ Fase 1: Limpeza e Consolidação de Dependências (Concluída)
+##  Fase 1: Limpeza e Consolidação de Dependências (Concluída)
 
 ### 1.1 Ficheiros Removidos
 Os seguintes ficheiros de log/erro temporários foram removidos da raiz:
-- ❌ `err.txt`
-- ❌ `err_final.txt`
-- ❌ `h1_large.err`
-- ❌ `logs_final.txt`
-- ❌ `log_full.txt`
-- ❌ `run_output.txt`
+-  `err.txt`
+-  `err_final.txt`
+-  `h1_large.err`
+-  `logs_final.txt`
+-  `log_full.txt`
+-  `run_output.txt`
 
 **Razão:** Ficheiros gerados durante execução de scripts, não devem estar na raiz nem em controlo de versão.
 
 ### 1.2 Ficheiros Movidos
-- ✅ `cleanup.py` → `python/scripts/tools/cleanup.py`
-- ✅ `monitor_training.py` → `python/scripts/tools/monitor_training.py`
+-  `cleanup.py` → `python/scripts/tools/cleanup.py`
+-  `monitor_training.py` → `python/scripts/tools/monitor_training.py`
 
 **Razão:** Utilitários de suporte e monitorização devem estar organizados numa pasta dedicada.
 
@@ -34,7 +34,7 @@ training_out.txt
 
 ### 1.4 Atualização do `requirements.txt`
 Adicionada dependência em falta:
-- ✅ `scipy>=1.9.0` (era importada mas não declarada)
+-  `scipy>=1.9.0` (era importada mas não declarada)
 
 ---
 
@@ -69,7 +69,7 @@ Os seguintes ficheiros contêm caminhos hardcoded e precisariam de atualização
 
 ---
 
-## 🎯 Próximas Recomendações (Opcional)
+##  Próximas Recomendações (Opcional)
 
 1. **Consolidação de Dados** (Complexidade: Alta)
    - Requer atualização de ~15+ ficheiros Python
@@ -99,9 +99,9 @@ Os seguintes ficheiros contêm caminhos hardcoded e precisariam de atualização
 
 ---
 
-## 📊 Estado Atual do Repositório (Após Fase 1)
-- ✅ Raiz limpa de ficheiros temporários
-- ✅ Dependências corretas em `requirements.txt`
-- ✅ `.gitignore` melhorado com regras de segurança
-- ✅ Utilitários organizados em `python/scripts/tools/`
+##  Estado Atual do Repositório (Após Fase 1)
+-  Raiz limpa de ficheiros temporários
+-  Dependências corretas em `requirements.txt`
+-  `.gitignore` melhorado com regras de segurança
+-  Utilitários organizados em `python/scripts/tools/`
 - ⏳ Estrutura de dados/outputs ainda duplicada (estratégia híbrida)

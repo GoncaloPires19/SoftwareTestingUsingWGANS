@@ -46,7 +46,8 @@ class ExperimentalAnalysis:
             self.real_data = None
             
         try:
-            self.synthetic_data = pd.read_csv(synthetic_data_path).iloc[:, :3]
+            raw_synthetic = pd.read_csv(synthetic_data_path, header=None)
+            self.synthetic_data = raw_synthetic.iloc[:, :3].apply(pd.to_numeric, errors='coerce').dropna()
             self.synthetic_data.columns = ['methods', 'branches', 'statements']
             logger.info(f"✅ Loaded synthetic data: {len(self.synthetic_data)} samples")
         except FileNotFoundError:

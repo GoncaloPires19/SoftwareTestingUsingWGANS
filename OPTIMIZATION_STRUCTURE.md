@@ -1,4 +1,4 @@
-# 📁 Estrutura Redefinida do Projeto
+#  Estrutura Redefinida do Projeto
 
 ## Visão Geral da Hierarquia Atual (Pós-Otimização)
 
@@ -63,8 +63,8 @@ SoftwareTestingUsingWGANS/
 │   └── (criada no próximo passo)
 │
 ├── pom.xml                    # Build Maven parent
-├── requirements.txt           # ✅ Atualizado com scipy
-├── .gitignore                 # ✅ Melhorado
+├── requirements.txt           #  Atualizado com scipy
+├── .gitignore                 #  Melhorado
 ├── README.md                  # Este ficheiro
 ├── REFACTORING_LOG.md         # Log de mudanças (novo)
 └── .venv/                     # Virtualenv (ignorado)
@@ -74,24 +74,24 @@ SoftwareTestingUsingWGANS/
 
 ## 🔄 Mudanças Realizadas
 
-### ✅ Automáticas (Fase 1 Completa)
+###  Automáticas (Fase 1 Completa)
 
 1. **Limpeza da Raiz**
    - Removidos 6 ficheiros de log temporários
    - A raiz agora contém apenas ficheiros essenciais
 
 2. **Gestão de Dependências**
-   - ✅ Adicionado `scipy>=1.9.0` ao `requirements.txt`
-   - ✅ Atualizado `.gitignore` com regras `*.err`, `*.out`, `*.txt`
+   -  Adicionado `scipy>=1.9.0` ao `requirements.txt`
+   -  Atualizado `.gitignore` com regras `*.err`, `*.out`, `*.txt`
 
 3. **Organização de Utilitários**
-   - ✅ `cleanup.py` → `python/scripts/tools/`
-   - ✅ `monitor_training.py` → `python/scripts/tools/`
+   -  `cleanup.py` → `python/scripts/tools/`
+   -  `monitor_training.py` → `python/scripts/tools/`
    - Estes scripts continuam funcionando normalmente quando executados a partir da raiz
 
 ---
 
-## 🎯 Como Usar a Estrutura Refatorada
+##  Como Usar a Estrutura Refatorada
 
 ### Instalar Dependências
 ```bash
@@ -140,7 +140,7 @@ Embora a Fase 1 esteja completa e segura, as seguintes melhorias podem ser feita
 
 ---
 
-## ⚙️ Configuração Segura para Consolidação Futura
+##  Configuração Segura para Consolidação Futura
 
 Se decidir fazer a consolidação de dados, siga este procedimento:
 
@@ -174,4 +174,4 @@ Se decidir fazer a consolidação de dados, siga este procedimento:
 ---
 
 **Última Atualização:** 2026-03-23
-**Estado:** Fase 1 Concluída ✅
+**Estado:** Fase 1 Concluída 

@@ -20,6 +20,48 @@ class RobustTests {
         // Setup before each test
     }
 
+    @Test
+    @DisplayName("Mutation alignment with MathOperations and TestDataLoader")
+    void testMutationAlignmentBridge() {
+        assertEquals(6, MathOperations.sum(new int[]{1, 2, 3}));
+        assertEquals(3, MathOperations.gcd(9, 6));
+        assertFalse(MathOperations.isPrime(21));
+        assertTrue(MathOperations.isPrime(19));
+        assertArrayEquals(new int[]{1, 2, 3}, MathOperations.bubbleSort(new int[]{3, 1, 2}));
+
+        TestDataLoader loader = new TestDataLoader();
+        loader.collectTestData("robust", 42);
+        assertEquals(1, loader.getCollectedDataSize());
+        assertEquals("robust,42", loader.getCollectedData(0));
+    }
+
+    @Test
+    @DisplayName("Mutation core coverage for MathOperations")
+    void testMutationCoreCoverageMathOperationsRobust() {
+        assertEquals(0, MathOperations.sum(null));
+        assertEquals(15, MathOperations.sum(new int[]{1, 2, 3, 4, 5}));
+
+        assertEquals(42, MathOperations.max(new int[]{42}));
+        assertEquals(42, MathOperations.min(new int[]{42}));
+
+        assertTrue(MathOperations.isPrime(29));
+        assertFalse(MathOperations.isPrime(28));
+
+        assertEquals(120, MathOperations.factorial(5));
+        assertEquals(21, MathOperations.fibonacci(8));
+
+        assertEquals(1, MathOperations.gcd(17, 13));
+
+        assertTrue(MathOperations.isPerfectSquare(64));
+        assertFalse(MathOperations.isPerfectSquare(63));
+
+        assertTrue(MathOperations.isPalindrome("race car"));
+        assertFalse(MathOperations.isPalindrome("software"));
+
+        assertArrayEquals(new int[]{0, 0, 1884}, MathOperations.bubbleSort(new int[]{1884, 0, 0}));
+        assertArrayEquals(new int[]{0, 0, 1884}, MathOperations.reverseArray(new int[]{1884, 0, 0}));
+    }
+
     // ============================================================================
     // ARITHMETIC OPERATIONS WITH EDGE CASES
     // ============================================================================

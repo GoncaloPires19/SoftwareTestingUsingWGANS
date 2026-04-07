@@ -22,11 +22,11 @@ public class JUnitCSVLogger {
     }
 
     /**
-     * Logs test metrics to CSV file with exactly 3 columns: methods, branches, statements.
-     * 
-     * @param methods Number of methods covered/tested
-     * @param branches Number of branches covered/tested
-     * @param statements Number of statements covered/tested
+     * Logs a 3-feature tuple to CSV.
+     *
+     * The column names methods/branches/statements are preserved for backward
+     * compatibility with existing Python scripts, but the values are generic
+     * test-derived numeric features produced by each test suite.
      */
     public static synchronized void log(double methods, double branches, double statements) {
         try {

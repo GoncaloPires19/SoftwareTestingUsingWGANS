@@ -59,6 +59,15 @@ def _call_python(command: List[str], cwd: Path) -> None:
         raise RuntimeError(f"Command failed ({result.returncode}): {' '.join(command)}")
 
 
+def _resolve_existing_path(*candidates: str) -> str:
+    """Return first existing path from candidates, otherwise first non-empty candidate."""
+    filtered = [c for c in candidates if c]
+    for candidate in filtered:
+        if Path(candidate).exists():
+            return candidate
+    return filtered[0] if filtered else ""
+
+
 def _extract_run_metrics(report_path: Path, history_path: Path, profile: str, repetition: int, seed: int, run_dir: Path) -> Dict[str, float]:
     with open(report_path, "r", encoding="utf-8") as f:
         report = json.load(f)
@@ -184,6 +193,19 @@ def main() -> None:
     parser.add_argument("--experiment-name", type=str, default=None,
                         help="Optional name for this batch, used for result folder naming")
     args = parser.parse_args()
+
+    args.data_path = _resolve_existing_path(
+        args.data_path,
+        "python/data/junit_data_cleaned_strict.csv",
+        "python/data/junit_data_cleaned.csv",
+        "data/processed/train.csv",
+    )
+    args.real_data = _resolve_existing_path(
+        args.real_data,
+        args.data_path,
+        "python/data/junit_data_cleaned_strict.csv",
+        "python/data/junit_data_cleaned.csv",
+    )
 
     repo_root = Path(__file__).resolve().parents[2]
     output_root = (repo_root / args.output_root).resolve()

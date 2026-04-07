@@ -16,12 +16,90 @@ import numpy as np
 import pandas as pd
 import json
 import logging
+from typing import Optional
 
 from model import Generator
 from junit_datasets import load_normalization_stats
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _resolve_latest_trained_model(explicit_model: Optional[str]) -> Optional[Path]:
+    """Resolve a generator checkpoint path, favoring the latest trained output."""
+    if explicit_model:
+        return Path(explicit_model)
+
+    # Backward-compatible default first.
+    legacy_default = Path("models/generator_final.pth")
+    if legacy_default.exists():
+        return legacy_default
+
+    outputs_root = Path("outputs")
+    if not outputs_root.exists():
+        return None
+
+    preferred_names = [
+        "generator_best_by_robust_v2.pth",
+        "generator_best_by_coverage.pth",
+        "generator_best_by_robust.pth",
+        "generator_final.pth",
+    ]
+
+    candidates = []
+    for run_dir in outputs_root.iterdir():
+        models_dir = run_dir / "models"
+        if not models_dir.exists() or not models_dir.is_dir():
+            continue
+        for filename in preferred_names:
+            model_path = models_dir / filename
+            if model_path.exists():
+                candidates.append(model_path)
+                break
+
+    if not candidates:
+        return None
+
+    # Most recent checkpoint wins.
+    return max(candidates, key=lambda p: p.stat().st_mtime)
+
+
+def _resolve_norm_stats_path(explicit_stats: Optional[str], model_path: Path) -> Optional[Path]:
+    """Resolve normalization stats path from explicit argument, model run config, or defaults."""
+    candidates = []
+    if explicit_stats:
+        candidates.append(Path(explicit_stats))
+    candidates.append(Path("python/data/junit_data_cleaned_norm_stats.json"))
+
+    candidates.extend(_extract_norm_stats_candidates_from_run_config(model_path))
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _extract_norm_stats_candidates_from_run_config(model_path: Path) -> list[Path]:
+    """Extract candidate stats paths from a run config near the selected model."""
+    if model_path.parent.name != "models":
+        return []
+
+    config_path = model_path.parent.parent / "config.json"
+    if not config_path.exists():
+        return []
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            run_config = json.load(f)
+    except Exception as exc:
+        logger.warning(f"Could not parse run config for norm stats: {exc}")
+        return []
+
+    candidates = []
+    for key in ("norm_stats_path", "normalization_stats_path"):
+        if key in run_config:
+            candidates.append(Path(run_config[key]))
+    return candidates
 
 
 class SyntheticTestGenerator:
@@ -101,7 +179,7 @@ class SyntheticTestGenerator:
                 norm_stats = load_normalization_stats(default_stats_path)
             else:
                 logger.error(f"❌ Normalization stats not found at {default_stats_path}")
-                logger.error(f"   Cannot denormalize without actual min/max values!")
+                logger.error("   Cannot denormalize without actual min/max values!")
                 raise FileNotFoundError(
                     f"Normalization statistics file not found. "
                     f"Expected at: {default_stats_path}\n"
@@ -149,6 +227,9 @@ class SyntheticTestGenerator:
         output_path: Path,
         norm_stats: dict = None,
         denormalize: bool = True,
+        include_header: bool = False,
+        include_metadata: bool = False,
+        keep_extra_features: bool = False,
     ) -> None:
         """
         Save synthetic samples to CSV
@@ -158,6 +239,9 @@ class SyntheticTestGenerator:
             output_path: Where to save CSV
             norm_stats: Normalization statistics for denormalization
             denormalize: Whether to denormalize features
+            include_header: Whether to write CSV header row
+            include_metadata: Whether to append metadata columns (test_id/source/epoch)
+            keep_extra_features: Keep features beyond the 3 core schema columns
         """
         
         features = synthetic_features.copy()
@@ -165,22 +249,26 @@ class SyntheticTestGenerator:
         if denormalize:
             features = self.denormalize_features(features, norm_stats)
         
-        # Create DataFrame with 3 or 4 features depending on output
-        if features.shape[1] == 4:
+        # Canonical schema is 3 columns. Keep extras only when explicitly requested.
+        if not keep_extra_features and features.shape[1] > 3:
+            logger.info("Dropping extra generated feature columns to keep 3-column schema compatibility")
+            features = features[:, :3]
+
+        if features.shape[1] >= 4:
             columns = ["methods", "branches", "statements", "method_coverage"]
         else:
             columns = ["methods", "branches", "statements"]
         
         df = pd.DataFrame(features, columns=columns)
         
-        # Add metadata
-        df["test_id"] = [f"synthetic_{i:06d}" for i in range(len(df))]
-        df["source"] = "wgan"
-        df["epoch"] = 0  # Placeholder
+        if include_metadata:
+            df["test_id"] = [f"synthetic_{i:06d}" for i in range(len(df))]
+            df["source"] = "wgan"
+            df["epoch"] = 0  # Placeholder
         
         # Save
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(output_path, index=False)
+        df.to_csv(output_path, index=False, header=include_header)
         
         logger.info(f"✅ Saved {len(df)} samples to {output_path}")
         logger.info(f"   Features: methods={df['methods'].mean():.1f} ± {df['methods'].std():.1f}")
@@ -196,8 +284,8 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="models/generator_final.pth",
-        help="Path to trained generator"
+        default=None,
+        help="Path to trained generator (auto-resolved from latest run when omitted)"
     )
     
     parser.add_argument(
@@ -231,28 +319,47 @@ def main():
     parser.add_argument(
         "--norm-stats",
         type=str,
-        default="python/data/junit_data_cleaned_norm_stats.json",
-        help="Path to normalization statistics JSON"
+        default=None,
+        help="Path to normalization statistics JSON (auto-resolved when omitted)"
+    )
+
+    parser.add_argument(
+        "--with-header",
+        action="store_true",
+        help="Write CSV header row (default is headerless for schema compatibility)"
+    )
+
+    parser.add_argument(
+        "--include-metadata",
+        action="store_true",
+        help="Append metadata columns (test_id/source/epoch)"
+    )
+
+    parser.add_argument(
+        "--keep-extra-features",
+        action="store_true",
+        help="Keep generated features beyond the canonical 3-column schema"
     )
     
     args = parser.parse_args()
     
     # Check if model exists
-    model_path = Path(args.model)
-    if not model_path.exists():
-        logger.error(f"Model not found: {model_path}")
+    model_path = _resolve_latest_trained_model(args.model)
+    if model_path is None or not model_path.exists():
+        logger.error("Model not found. Provide --model or run training first.")
+        logger.error("Expected either models/generator_final.pth or outputs/<run>/models/generator_*.pth")
         return
     
     # Load normalization statistics
     norm_stats = None
     if args.denormalize:
-        stats_path = Path(args.norm_stats)
-        if stats_path.exists():
+        stats_path = _resolve_norm_stats_path(args.norm_stats, model_path)
+        if stats_path and stats_path.exists():
             logger.info(f"📂 Loading normalization stats from {stats_path}")
             norm_stats = load_normalization_stats(stats_path)
         else:
-            logger.warning(f"⚠ Normalization stats not found at {stats_path}")
-            logger.warning(f"  Synthetic data will NOT be denormalized correctly!")
+            logger.warning("⚠ Normalization stats not found")
+            logger.warning("  Synthetic data will NOT be denormalized correctly!")
     
     # Generate
     generator = SyntheticTestGenerator(
@@ -265,7 +372,10 @@ def main():
         synthetic,
         Path(args.output),
         norm_stats=norm_stats,
-        denormalize=args.denormalize
+        denormalize=args.denormalize,
+        include_header=args.with_header,
+        include_metadata=args.include_metadata,
+        keep_extra_features=args.keep_extra_features,
     )
     
     logger.info("\n✅ Generation complete!")

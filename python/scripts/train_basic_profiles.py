@@ -90,6 +90,28 @@ def _compute_real_feature_stats(real_data: np.ndarray):
     }
 
 
+def _resolve_dataset_path(data_path: str | None) -> str:
+    """Resolve dataset path using explicit input or repository fallbacks."""
+    candidates = []
+    if data_path:
+        candidates.append(Path(data_path))
+
+    candidates.extend([
+        Path("python/data/junit_data_cleaned_strict.csv"),
+        Path("python/data/junit_data_cleaned.csv"),
+        Path("data/processed/train.csv"),
+    ])
+
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+
+    # Keep original explicit value for clearer downstream error if it was provided.
+    if data_path:
+        return data_path
+    return str(candidates[0])
+
+
 def _evaluate_synthetic_batch(fake_eval: np.ndarray, real_stats: dict, max_values: np.ndarray):
     """Compute robust metrics for model selection.
 
@@ -216,7 +238,7 @@ def train_basic_profile(
     epochs=None,
     seed=42,
     device='cpu',
-    data_path='python/data/junit_data_cleaned_strict.csv',
+    data_path=None,
     norm_stats_path=None,
     output_root='outputs',
     run_name=None,
@@ -250,7 +272,7 @@ def train_basic_profile(
     models_dir = output_dir / 'models'
     models_dir.mkdir(exist_ok=True)
 
-    dataset_path = data_path
+    dataset_path = _resolve_dataset_path(data_path)
     if norm_stats_path is None:
         dataset_path_obj = Path(dataset_path)
         norm_stats_path = str(dataset_path_obj.parent / f"{dataset_path_obj.stem}_norm_stats.json")
@@ -585,8 +607,8 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=str, default='cpu',
                         choices=['cpu', 'cuda'],
                         help='Device to use')
-    parser.add_argument('--data-path', type=str, default='python/data/junit_data_cleaned_strict.csv',
-                        help='Path to input CSV (no header, 3 columns)')
+    parser.add_argument('--data-path', type=str, default=None,
+                        help='Path to input CSV (auto-resolved when omitted)')
     parser.add_argument('--norm-stats-path', type=str, default=None,
                         help='Path to normalization stats JSON (auto-generated if omitted)')
     parser.add_argument('--output-root', type=str, default='outputs',

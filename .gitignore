@@ -107,3 +107,8 @@ desktop.ini
 *.bak
 *.swp
 *~.nib
+
+# ===== EvoSuite Generated Artifacts =====
+.evosuite/
+evosuite-report/
+evosuite-tests/

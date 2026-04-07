@@ -17,7 +17,7 @@ This is a **hybrid Java/Python research project** that generates synthetic JUnit
 mvn clean test
 
 # 2. Train WGAN model (50 epochs on normalized test features)
-python python/scripts/train_robust.py
+python python/scripts/train_basic_profiles.py --profile optimized --epochs 50
 
 # 3. Generate synthetic tests
 python python/scripts/generate_synthetic.py
@@ -30,14 +30,17 @@ python python/scripts/experimental_analysis.py
 
 ### 2. Development Testing
 ```bash
-# Quick system verification (all dependencies, data, models)
-python python/test_system.py
+# Quick system verification
+python validate_refactoring.py
+
+# Data validation before training
+python python/scripts/validate_before_training.py
 
 # Run only Java tests (no synthetic generation)
 mvn clean test
 
-# Run specific Python module test
-python -m pytest python/ -v
+# Run targeted experiment smoke test
+python python/scripts/train_basic_profiles.py --profile balanced --epochs 5
 ```
 
 ### 3. Training Troubleshooting
@@ -50,13 +53,13 @@ If training fails or produces poor results:
 ## Architecture Patterns & Decision Points
 
 ### Dataset Normalization Strategy
-Features are normalized to [-1, 1] range **before** GAN training (see [junit_datasets.py](../python/junit_datasets.py#L43-L65)):
+Features are normalized to [-1, 1] range **before** GAN training (see [junit_datasets.py](../python/junit_datasets.py)):
 - **Why**: Symmetric range matches LeakyReLU activation optimal range; improves numerical stability
 - **Formula**: `x_norm = 2 * (x - x_min) / (x_max - x_min) - 1`
 - **Gotcha**: Must handle NaN/Inf values before normalization or training diverges
 
 ### Gradient Penalty Implementation (WGAN-GP Specific)
-The Critic network requires gradient penalty (see [utils.py](../python/utils.py#L15-L50)):
+The Critic network requires gradient penalty (see [utils.py](../python/utils.py)):
 - **Purpose**: Enforces Lipschitz constraint (gradient norm ≤ 1) for training stability
 - **Not like traditional GANs**: Critic outputs scores, not probabilities; no sigmoid activation
 - **Lambda value**: Default 10 - increasing this stabilizes training but reduces diversity
@@ -77,14 +80,14 @@ The codebase supports combining datasets via `config.py` DatasetMode enum:
 
 ### Data File Contracts
 - **Input CSV** (junit_data.csv): No header, 3 columns (numeric features only)
-- **Output CSV** (synthetic_tests.csv): Same format as input; can be used as new training data
+- **Output CSV** (synthetic_tests.csv): Headerless 3-column format by default; can be used as new training data
 - **Cleaned data** (junit_data_cleaned.csv): Filtered version with NaN/Inf removed
 - **All datasets use same 3-feature schema**: (method_count, branch_count, statement_count)
 
 ### Model Configuration Pattern
 Configuration lives in `config.py` with DataConfig & ModelConfig dataclasses:
 - Always use `config.py` for hyperparameters - hardcoded values in scripts are discouraged
-- Individual training scripts (train_simple.py, train_phase2.py, train_robust.py) override specific configs
+- Individual training scripts (`train_basic_profiles.py`, `train_optimized.py`) override specific configs
 - Training history + hyperparams saved together in outputs for reproducibility
 
 ## Integration Points & Dependencies
@@ -95,7 +98,7 @@ Configuration lives in `config.py` with DataConfig & ModelConfig dataclasses:
 - **Missing file error?** Run `mvn clean test` first to regenerate metrics
 
 ### External Datasets Integration
-The project integrates three external sources (configured in [config.py](../python/config.py#L29-L40)):
+The project integrates three external sources (configured in [config.py](../python/config.py)):
 - **Defects4J**: Real bugs; CSV at `data/raw/defects4j/defects4j_normalized.csv`
 - **OWASP Benchmark**: Java vulnerabilities; loaded via BenchmarkJava from GitHub
 - **EvoSuite**: Auto-generated tests; specific version configured in pom.xml
@@ -109,7 +112,7 @@ The project integrates three external sources (configured in [config.py](../pyth
 
 | Issue | Root Cause | Fix |
 |-------|-----------|-----|
-| Training loss diverges/NaN | NaN in dataset after normalization | Check `junit_data_cleaned.csv` for invalid values; regenerate with `clean_data.py` |
+| Training loss diverges/NaN | NaN in dataset after normalization | Check `junit_data_cleaned.csv` for invalid values; run `validate_before_training.py` |
 | Low synthetic quality (< 70%) | Model underfitted; too few epochs/samples | Increase num_epochs in config; ensure ≥100 clean samples in training data |
 | "Critic always wins" (loss ratio imbalanced) | Learning rates mismatched or gradient penalty too high | Reduce lambda_gp or increase critic iterations per generator iteration |
 | Synthetic tests don't match real test ranges | Denormalization formula incorrect | Verify inverse normalization in generate_synthetic.py uses same min/max as training |
@@ -122,7 +125,7 @@ The project integrates three external sources (configured in [config.py](../pyth
 | [config.py](../python/config.py) | Centralized hyperparameters for all training modes | Tuning learning rates, batch size, dataset mix |
 | [model.py](../python/model.py) | Generator & Critic architectures (fixed for this project) | Never - architecture is proven; use config.py for params |
 | [junit_datasets.py](../python/junit_datasets.py) | Data loading & normalization (core data pipeline) | Adding new feature types beyond the 3 base metrics |
-| [train_robust.py](../python/scripts/train_robust.py) | Main training loop (50 epochs, production quality) | Monitoring hyperparams; don't change unless experimenting |
+| [train_basic_profiles.py](../python/scripts/train_basic_profiles.py) | Main training loop (profile-driven, production quality) | Monitoring hyperparams; don't change unless experimenting |
 | [experimental_analysis.py](../python/scripts/experimental_analysis.py) | Validation: Train vs Test metrics, overfitting analysis | Only for research; results inform config.py tuning |
 
 ## Testing Strategy
@@ -134,6 +137,7 @@ The project uses a **two-level testing approach**:
 
 Run the quick verification script before major changes:
 ```bash
-python python/test_system.py
+python validate_refactoring.py
+python python/scripts/validate_before_training.py
 ```
 This validates all dependencies and data pipelines in <30 seconds.
