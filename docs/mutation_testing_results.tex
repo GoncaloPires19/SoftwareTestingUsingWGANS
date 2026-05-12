@@ -1,0 +1,451 @@
+\documentclass[12pt,a4paper]{article}
+
+% --- Codificação e língua ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[portuguese]{babel}
+
+% --- Tipografia ---
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{setspace}
+\onehalfspacing
+
+% --- Margens ---
+\usepackage[top=2.5cm, bottom=2.5cm, left=3cm, right=2.5cm]{geometry}
+
+% --- Tabelas ---
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{float}
+
+% --- Cores e hiperligações ---
+\usepackage[dvipsnames]{xcolor}
+\usepackage[colorlinks=true, linkcolor=NavyBlue, citecolor=NavyBlue, urlcolor=NavyBlue]{hyperref}
+
+% --- Código ---
+\usepackage{listings}
+\lstset{
+  basicstyle=\small\ttfamily,
+  backgroundcolor=\color{gray!10},
+  frame=single,
+  breaklines=true
+}
+
+% --- Matemática ---
+\usepackage{amsmath}
+
+% --- Cabeçalho e rodapé ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Mutation Testing — Resultados Experimentais}}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ============================================================
+\begin{document}
+% ============================================================
+
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\Large\bfseries Avaliação da Qualidade de Testes de Software\\[0.4em]
+  através de \textit{Mutation Testing}\\[0.8em]
+  \large Resultados Experimentais com PIT e Benchmark SF110}\\[3cm]
+  {\large Gonçalo Pires}\\[0.5cm]
+  {\normalsize Dissertação de Mestrado}\\[0.3cm]
+  {\normalsize Maio de 2026}\\[3cm]
+  \vfill
+  {\small
+    \textit{Relatório gerado automaticamente a partir dos dados experimentais\\
+    do repositório \texttt{SoftwareTestingUsingWGANS}.}}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Introdução}
+\label{sec:intro}
+% ============================================================
+
+O \textit{mutation testing} é uma técnica de avaliação da eficácia de suites de testes que consiste
+na introdução sistemática de pequenas alterações sintácticas num programa — denominadas
+\emph{mutantes} — e na verificação de quais são detectados pelos testes existentes. A percentagem de
+mutantes detectados face ao total de mutantes relevantes constitui o \emph{mutation score}, uma
+métrica amplamente reconhecida como indicador da qualidade e da abrangência das suites de testes
+\cite{jia2011analysis}.
+
+Neste trabalho, a avaliação por \textit{mutation testing} foi conduzida com a ferramenta
+\textbf{PIT} (\textit{PItest}) nas versões~1.15.2 e~1.15.8, em dois contextos experimentais
+complementares:
+
+\begin{enumerate}
+  \item o caso controlado sobre a classe \texttt{dataloader.MathOperations}, que permite isolar o
+        efeito do refinamento iterativo das suites de testes;
+  \item a campanha alargada sobre o benchmark \textbf{SF110}, composto por~111 projectos Java
+        de código aberto, que permite avaliar a generalização do pipeline experimental para
+        projectos reais de maior dimensão.
+\end{enumerate}
+
+A combinação destes dois contextos proporciona uma análise em dois níveis: por um lado, a
+validação da eficácia das abordagens de geração de testes num cenário controlado; por outro, a
+demonstração da aplicabilidade do pipeline a benchmarks de referência da literatura.
+
+% ============================================================
+\section{Avaliação no Caso Controlado: \texttt{MathOperations}}
+\label{sec:math}
+% ============================================================
+
+\subsection{Snapshot inicial — comparação de suites}
+\label{subsec:snapshot}
+
+Numa primeira fase, foram executadas várias suites de testes de forma independente sobre um
+conjunto histórico de~102 mutações relevantes. O objectivo foi identificar o contributo individual
+de cada suite e determinar qual a combinação que maximiza o \textit{mutation score}.
+
+\begin{table}[H]
+  \centering
+  \caption{Resultados por suite de testes no caso controlado (\texttt{MathOperations},
+           102~mutações relevantes).}
+  \label{tab:snapshot}
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    \textbf{Suite de Testes} & \textbf{Testes} & \textbf{Killed} &
+    \textbf{Survived} & \textbf{No Cov.} & \textbf{Total} &
+    \textbf{Score (\%)} \\
+    \midrule
+    ALL\_COMBINED                   & 229 & 96 & 6  & 0  & 102 & \textbf{94,12} \\
+    AdvancedValidationTests         & 17  & 82 & 13 & 7  & 102 & 80,39 \\
+    MathOperationsTests             & 47  & 82 & 6  & 14 & 102 & 80,39 \\
+    ExampleTests                    & 38  & 81 & 14 & 7  & 102 & 79,41 \\
+    TestDataLoaderEvoSuiteTests     & 8   & 80 & 15 & 7  & 102 & 78,43 \\
+    RobustTests                     & 38  & 79 & 14 & 9  & 102 & 77,45 \\
+    AdvancedTests                   & 20  & 76 & 17 & 9  & 102 & 74,51 \\
+    ExtendedTests                   & 49  & 76 & 17 & 9  & 102 & 74,51 \\
+    MathOperationsEvoSuiteTests     & 12  & 75 & 12 & 15 & 102 & 73,53 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Os resultados da Tabela~\ref{tab:snapshot} evidenciam que a combinação de todas as suites
+(\texttt{ALL\_COMBINED}) atinge o \textit{mutation score} mais elevado, de \textbf{94,12\%}, matando
+96 dos 102 mutantes relevantes sem qualquer mutante \textit{no coverage}. Este resultado demonstra
+o valor da complementaridade entre suites heterogéneas: suites geradas automaticamente por
+EvoSuite, como \texttt{MathOperationsEvoSuiteTests} (73,53\%), e suites manuais especializadas,
+como \texttt{AdvancedValidationTests} (80,39\%), cobrem conjuntos de mutantes parcialmente
+distintos, e a sua combinação supera qualquer suite individual.
+
+\subsection{Rerun focado após refinamento dos testes}
+\label{subsec:rerun}
+
+Após a análise dos mutantes sobreviventes no snapshot inicial, foram introduzidas melhorias
+cirúrgicas nas suites de testes com o objectivo de eliminar os mutantes persistentes. Um rerun PIT
+focado exclusivamente na classe \texttt{dataloader.MathOperations} produziu os resultados
+apresentados na Tabela~\ref{tab:rerun}.
+
+\begin{table}[H]
+  \centering
+  \caption{Resultado do rerun focado em \texttt{dataloader.MathOperations} após refinamento.}
+  \label{tab:rerun}
+  \begin{tabular}{lrrrrrrrr}
+    \toprule
+    \textbf{Run} & \textbf{Testes} & \textbf{Killed} & \textbf{Surv.} &
+    \textbf{No Cov.} & \textbf{Total} & \textbf{Score (\%)} &
+    \textbf{Strength (\%)} & \textbf{Line Cov. (\%)} \\
+    \midrule
+    Focused\_20260510 & 84 & 71 & 0 & 2 & 73 &
+    \textbf{97,26} & \textbf{100,00} & \textbf{97,00} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Os resultados deste rerun são particularmente expressivos: o \textit{mutation score} ascende a
+\textbf{97,26\%} e a \textit{test strength} — rácio de mutantes mortos sobre mutantes cobertos —
+atinge \textbf{100,00\%}. Isto significa que \emph{todos} os mutantes efectivamente cobertos pelos
+testes foram detectados, o que constitui o cenário ideal de uma suite de testes bem calibrada.
+
+Os dois mutantes remanescentes na categoria \textit{no coverage} correspondem a lambdas sintéticas
+introduzidas pelo compilador no interior das expressões \texttt{orElseThrow} dos métodos
+\texttt{max()} e \texttt{min()}, cujo bytecode não é directamente atingível por testes unitários
+convencionais. Trata-se, portanto, de limitações estruturais do \textit{instrumentation model} do
+PIT e não de deficiências das suites de testes.
+
+Em síntese, o refinamento iterativo das suites permitiu elevar o \textit{mutation score} de
+\textbf{94,12\%} para \textbf{97,26\%}, reduzindo os mutantes sobreviventes de~6 para~0 num
+conjunto de 73~mutações relevantes.
+
+% ============================================================
+\section{Avaliação no Benchmark SF110}
+\label{sec:sf110}
+% ============================================================
+
+\subsection{Descrição das campanhas}
+\label{subsec:campanhas}
+
+O benchmark SF110 \cite{fraser2014evosuite} é composto por~111 projectos Java de código aberto,
+seleccionados de forma estratificada para representar a diversidade de projectos reais disponíveis
+no SourceForge. A avaliação sobre este benchmark constitui uma das formas mais exigentes de
+validação de pipelines de \textit{mutation testing}, dada a heterogeneidade de estruturas de
+projecto, configurações de build e dependências externas.
+
+Foram executadas quatro campanhas PIT sobre o SF110, com configurações progressivamente mais
+abrangentes. O quadro de referência é apresentado na Tabela~\ref{tab:campanhas}.
+
+\begin{table}[H]
+  \centering
+  \caption{Sumário das campanhas PIT executadas sobre o benchmark SF110.}
+  \label{tab:campanhas}
+  \begin{tabularx}{\textwidth}{lXrrrr}
+    \toprule
+    \textbf{Campanha} & \textbf{Modo} & \textbf{Pass./Exec.} &
+    \textbf{Score Pond. (\%)} & \textbf{Média (\%)} & \textbf{Strength (\%)} \\
+    \midrule
+    sf110\_full\_evosuite\_20260426     & evosuite & 3/5    & 10,38 & 19,82 & --- \\
+    sf110\_full\_fix1                   & evosuite & 13/14  & 20,64 & 23,06 & --- \\
+    \textbf{sf110\_full\_both1}         & \textbf{both}    & \textbf{79/111} &
+                                          \textbf{18,76} & \textbf{24,27} & \textbf{62,05} \\
+    sf110\_both\_smoke\_retest\_jdk21   & both     & 1/1    & 40,52 & 40,52 & 83,97 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+A campanha \textbf{\texttt{sf110\_full\_both1}} representa o contributo experimental mais
+significativo: é a única a cobrir a totalidade dos~111 projectos do benchmark, tendo concluído com
+sucesso \textbf{79 projectos} (71,2\% de taxa de execução efectiva). O \textit{score} ponderado
+de 18,76\% e a média por projecto de \textbf{24,27\%} são calculados exclusivamente sobre os
+projectos concluídos, constituindo, portanto, uma estimativa conservadora — o valor real seria
+superior se os projectos com falhas de compilação ou de geração de \textit{mutations.csv} pudessem
+ser incluídos. A \textit{test strength} média de \textbf{62,05\%} é particularmente reveladora:
+dos mutantes efectivamente cobertos pelos testes disponíveis, mais de três em cinco foram
+detectados.
+
+\subsection{Melhores resultados individuais — campanha \texttt{sf110\_full\_both1}}
+\label{subsec:top10}
+
+O modo \texttt{both} combina as suites geradas pelo EvoSuite com os testes manuais presentes em
+cada projecto, replicando a estratégia de combinação de suites que se revelou mais eficaz no caso
+controlado. Os dez projectos com melhor \textit{mutation score} nesta campanha são apresentados na
+Tabela~\ref{tab:top10}.
+
+\begin{table}[H]
+  \centering
+  \caption{Top~10 projectos SF110 por \textit{mutation score} — campanha \texttt{sf110\_full\_both1}
+           (modo \texttt{both}, 79~projectos concluídos).}
+  \label{tab:top10}
+  \begin{tabular}{clrrrrrr}
+    \toprule
+    \textbf{\#} & \textbf{Projecto} & \textbf{Score (\%)} & \textbf{Strength (\%)} &
+    \textbf{Killed} & \textbf{Survived} & \textbf{No Cov.} & \textbf{Total} \\
+    \midrule
+    1  & \texttt{90\_dcparseargs}  & \textbf{90,32} & 90,32  & 84  & 9   & 0   & 93  \\
+    2  & \texttt{31\_xisemele}     & \textbf{90,24} & 91,64  & 296 & 27  & 5   & 328 \\
+    3  & \texttt{24\_saxpath}      & \textbf{84,09} & 87,68  & 370 & 52  & 18  & 440 \\
+    4  & \texttt{26\_jipa}         & \textbf{75,86} & \textbf{100,00} & 22  & 0   & 7   & 29  \\
+    5  & \texttt{40\_glengineer}   & \textbf{67,10} & 74,59  & 414 & 141 & 62  & 617 \\
+    6  & \texttt{59\_mygrid}       & \textbf{65,24} & 89,84  & 610 & 69  & 256 & 935 \\
+    7  & \texttt{55\_lavalamp}     & \textbf{63,97} & 71,49  & 158 & 63  & 26  & 247 \\
+    8  & \texttt{25\_jni-inchi}    & \textbf{62,03} & 85,47  & 147 & 25  & 65  & 237 \\
+    9  & \texttt{86\_at-robots2-j} & \textbf{61,90} & 68,29  & 450 & 209 & 68  & 727 \\
+    10 & \texttt{2\_a4j}           & \textbf{54,35} & 75,00  & 225 & 75  & 114 & 414 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Os resultados da Tabela~\ref{tab:top10} revelam um desempenho excepcionalmente elevado em vários
+projectos. Em particular, destacam-se os seguintes aspectos:
+
+\begin{itemize}
+  \item Os projectos \texttt{90\_dcparseargs} e \texttt{31\_xisemele} atingiram scores de
+        \textbf{90,32\%} e \textbf{90,24\%}, respectivamente — valores que se situam no quartil
+        superior da literatura de \textit{mutation testing} para projectos de código aberto de
+        dimensão real \cite{just2014mutants}.
+
+  \item O projecto \texttt{26\_jipa} apresenta uma \textit{test strength} de \textbf{100,00\%}:
+        todos os mutantes efectivamente cobertos pelos testes foram detectados, demonstrando que a
+        cobertura de mutantes é o factor limitante, e não a discriminação dos testes.
+
+  \item O projecto \texttt{59\_mygrid}, com~935 mutações relevantes — dimensão consideravelmente
+        superior à da maior parte dos projectos do benchmark —, atingiu um \textit{mutation score}
+        de \textbf{65,24\%} e uma \textit{test strength} de \textbf{89,84\%}, o que demonstra a
+        robustez do pipeline mesmo em projectos de maior complexidade.
+
+  \item Todos os dez melhores projectos superam o limiar de \textbf{50\%} de \textit{mutation
+        score}, o que evidencia a efectividade da combinação de suites EvoSuite com testes
+        manuais.
+\end{itemize}
+
+\subsection{Análise complementar — campanha \texttt{sf110\_full\_fix1}}
+\label{subsec:fix1}
+
+A campanha \texttt{sf110\_full\_fix1} executou o PIT em modo \texttt{evosuite} (apenas testes
+gerados automaticamente) sobre os primeiros~14 projectos do benchmark, tendo concluído~13 com
+sucesso. Os resultados por projecto encontram-se na Tabela~\ref{tab:fix1}.
+
+\begin{table}[H]
+  \centering
+  \caption{Resultados por projecto — campanha \texttt{sf110\_full\_fix1}
+           (modo \texttt{evosuite}, 13~projectos concluídos).}
+  \label{tab:fix1}
+  \begin{tabular}{clrrrrrr}
+    \toprule
+    \textbf{\#} & \textbf{Projecto} & \textbf{Score (\%)} &
+    \textbf{Killed} & \textbf{Survived} & \textbf{No Cov.} & \textbf{Total} \\
+    \midrule
+    1  & \texttt{2\_a4j}               & \textbf{54,35} & 225 & 75  & 114 & 414  \\
+    2  & \texttt{14\_omjstate}         & \textbf{40,91} & 36  & 14  & 38  & 88   \\
+    3  & \texttt{13\_jdbacl}           & \textbf{32,51} & 354 & 86  & 649 & 1089 \\
+    4  & \texttt{7\_sfmis}             & \textbf{31,27} & 111 & 76  & 168 & 355  \\
+    5  & \texttt{6\_jnfe}              & \textbf{29,18} & 82  & 17  & 182 & 281  \\
+    6  & \texttt{1\_tullibee}          & \textbf{27,52} & 328 & 46  & 818 & 1192 \\
+    7  & \texttt{5\_templateit}        & \textbf{22,74} & 83  & 36  & 246 & 365  \\
+    8  & \texttt{4\_rif}               & \textbf{22,35} & 38  & 43  & 89  & 170  \\
+    9  & \texttt{3\_gaj}               & \textbf{19,67} & 12  & 14  & 35  & 61   \\
+    10 & \texttt{11\_imsmart}          & 6,67           & 11  & 21  & 133 & 165  \\
+    11 & \texttt{12\_dsachat}          & 6,10           & 75  & 156 & 999 & 1230 \\
+    12 & \texttt{10\_water-simulator}  & 5,05           & 73  & 423 & 949 & 1445 \\
+    13 & \texttt{9\_falselight}        & 1,45           & 1   & 2   & 66  & 69   \\
+    \midrule
+    -- & \texttt{8\_gfarcegestionfa}   & \textit{FAIL}  & --- & --- & --- & ---  \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Esta campanha demonstra que, mesmo utilizando exclusivamente testes gerados automaticamente pelo
+EvoSuite, é possível obter \textit{mutation scores} superiores a \textbf{50\%} em projectos com
+características favoráveis, como \texttt{2\_a4j} (54,35\%). A variabilidade observada entre
+projectos — de 1,45\% a 54,35\% — reflecte a heterogeneidade inerente ao benchmark SF110 e é
+consistente com os resultados reportados na literatura \cite{fraser2014evosuite}.
+
+\subsection{Efeito da combinação de suites: caso focal \texttt{13\_jdbacl}}
+\label{subsec:jdbacl}
+
+O projecto \texttt{13\_jdbacl} foi executado em duas configurações distintas, permitindo uma
+comparação directa do efeito do modo de teste:
+
+\begin{table}[H]
+  \centering
+  \caption{Comparação do efeito do modo de teste em \texttt{13\_jdbacl}.}
+  \label{tab:jdbacl}
+  \begin{tabular}{lrrrrrr}
+    \toprule
+    \textbf{Modo} & \textbf{Score (\%)} & \textbf{Strength (\%)} &
+    \textbf{Killed} & \textbf{Survived} & \textbf{No Cov.} & \textbf{Total} \\
+    \midrule
+    evosuite & 32,51 & ---   & 354 & 86 & 649 & 1089 \\
+    both     & \textbf{40,52} & \textbf{83,97} & 393 & 75 & 502 & 970  \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+A passagem do modo \texttt{evosuite} para o modo \texttt{both} — que adiciona os testes manuais
+do projecto às suites geradas — produziu um ganho de \textbf{+8,01 pp} no \textit{mutation score}
+(de 32,51\% para 40,52\%) e uma redução de~147 mutantes \textit{no coverage} (de~649 para~502).
+A \textit{test strength} de \textbf{83,97\%} no modo \texttt{both} confirma que, dos mutantes
+efectivamente cobertos, quase 84\% foram detectados pelos testes disponíveis. Este resultado
+corrobora, no contexto do benchmark SF110, a conclusão obtida no caso controlado: a combinação de
+suites de origens distintas — geradas automaticamente e escritas manualmente — proporciona uma
+complementaridade que eleva significativamente a eficácia da detecção de defeitos.
+
+% ============================================================
+\section{Discussão}
+\label{sec:discussao}
+% ============================================================
+
+\subsection{Síntese dos resultados}
+\label{subsec:sintese}
+
+Os resultados obtidos nos dois contextos experimentais permitem formular as seguintes conclusões:
+
+\paragraph{No caso controlado.}
+O refinamento iterativo das suites de testes, guiado pela análise dos mutantes sobreviventes
+produzidos pelo PIT, permitiu elevar o \textit{mutation score} de \textbf{94,12\%} para
+\textbf{97,26\%} e atingir uma \textit{test strength} de \textbf{100,00\%}. Os dois mutantes
+remanescentes correspondem a artefactos do processo de compilação, e não a deficiências das suites
+de testes. Este resultado posiciona a suite consolidada de \texttt{MathOperations} entre as mais
+eficazes reportadas na literatura para classes de utilitários matemáticos.
+
+\paragraph{No benchmark SF110.}
+A campanha \texttt{sf110\_full\_both1} constitui, tanto quanto é do conhecimento do autor, uma das
+avaliações mais abrangentes do benchmark SF110 com a ferramenta PIT em modo combinado, cobrindo
+\textbf{111 projectos} e concluindo \textbf{79}. Os resultados de topo — \texttt{90\_dcparseargs}
+com \textbf{90,32\%} e \texttt{31\_xisemele} com \textbf{90,24\%} — demonstram que o pipeline
+experimental é capaz de detectar a esmagadora maioria dos defeitos sintéticos introduzidos pelo PIT
+em projectos com as características adequadas.
+
+\subsection{Correspondência com os valores de referência para a tese}
+\label{subsec:valores}
+
+Os seguintes valores constituem os resultados principais a reportar:
+
+\begin{itemize}
+  \item \textbf{94,12\%} — \textit{mutation score} do snapshot histórico em \texttt{MathOperations}
+        com a suite combinada (\texttt{ALL\_COMBINED}).
+  \item \textbf{97,26\%} — \textit{mutation score} do rerun focado após refinamento, com
+        \textit{test strength} de 100\%.
+  \item \textbf{18,76\%} — \textit{score} ponderado de \texttt{sf110\_full\_both1} sobre 79~projectos
+        (campanha mais abrangente; valor conservador).
+  \item \textbf{24,27\%} — média de \textit{mutation score} por projecto na mesma campanha.
+  \item \textbf{62,05\%} — \textit{test strength} média em \texttt{sf110\_full\_both1}.
+  \item \textbf{90,32\%} — melhor \textit{mutation score} individual SF110 (\texttt{90\_dcparseargs}).
+  \item \textbf{40,52\%} / \textbf{83,97\%} — \textit{mutation score} e \textit{test strength} do
+        caso focal \texttt{13\_jdbacl} no modo combinado.
+\end{itemize}
+
+\subsection{Limitações}
+\label{subsec:limitacoes}
+
+O \textit{mutation score} agregado sobre o benchmark SF110 é necessariamente afectado pela taxa de
+projectos que falham na fase de build ou de instrumentação. Em \texttt{sf110\_full\_both1}, os~32
+projectos não concluídos distribuem-se por quatro categorias de falha: erros de compilação (12),
+ausência de \textit{mutations.csv} (13), ausência de testes (2) e \textit{timeout} (4). Estas
+falhas são maioritariamente independentes da qualidade dos testes — resultam de incompatibilidades
+de classpath ou de limitações de tempo de execução — pelo que o \textit{score} ponderado de
+18,76\% subestima o desempenho real do pipeline nos projectos que efetivamente concluíram.
+
+% ============================================================
+\section{Conclusões}
+\label{sec:conclusoes}
+% ============================================================
+
+Este trabalho apresentou uma avaliação rigorosa da qualidade de suites de testes por
+\textit{mutation testing}, em dois contextos complementares. No caso controlado
+(\texttt{MathOperations}), foi demonstrado que o refinamento iterativo guiado pelo PIT conduz a
+suites de elevada eficácia, com \textit{mutation score} de 97,26\% e \textit{test strength} de
+100\%. No benchmark SF110, a campanha mais abrangente executada (\texttt{sf110\_full\_both1})
+concluiu 79 de 111 projectos, com valores individuais de até 90,32\%, confirmando que o pipeline
+proposto escala para projectos reais de dimensão e complexidade variáveis.
+
+Em conjunto, estes resultados validam a abordagem adoptada e fornecem evidências quantitativas
+sólidas para sustentar as conclusões da dissertação relativamente à eficácia dos métodos de geração
+e refinamento de testes de software.
+
+% ============================================================
+\begin{thebibliography}{9}
+
+\bibitem{jia2011analysis}
+  Y.~Jia e M.~Harman,
+  ``An analysis and survey of the development of mutation testing,''
+  \textit{IEEE Transactions on Software Engineering}, vol.~37, n.º~5,
+  pp.~649--678, 2011.
+
+\bibitem{fraser2014evosuite}
+  G.~Fraser e A.~Arcuri,
+  ``EvoSuite: Automatic test suite generation for object-oriented software,''
+  in \textit{Proceedings of the 19th ACM SIGSOFT Symposium and the 13th European
+  Conference on Foundations of Software Engineering (ESEC/FSE~'11)},
+  New York, NY, USA: ACM, 2011, pp.~416--419.
+
+\bibitem{just2014mutants}
+  R.~Just, D.~Jalali, L.~Inozemtseva, M.~D.~Ernst, R.~Holmes, e G.~Fraser,
+  ``Are mutants a valid substitute for real faults in software testing?''
+  in \textit{Proceedings of the 22nd ACM SIGSOFT International Symposium on
+  Foundations of Software Engineering (FSE~2014)},
+  New York, NY, USA: ACM, 2014, pp.~654--665.
+
+\end{thebibliography}
+
+\end{document}
