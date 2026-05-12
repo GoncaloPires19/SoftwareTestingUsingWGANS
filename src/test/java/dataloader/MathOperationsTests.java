@@ -112,6 +112,8 @@ class MathOperationsTests {
         assertFalse(MathOperations.isPrime(4));
         assertFalse(MathOperations.isPrime(9));
         assertFalse(MathOperations.isPrime(10));
+        assertFalse(MathOperations.isPrime(25));
+        assertFalse(MathOperations.isPrime(49));
     }
     
     @Test
@@ -157,6 +159,13 @@ class MathOperationsTests {
     void testIsPalindromeWithSpaces() {
         assertTrue(MathOperations.isPalindrome("a b a"));
         assertTrue(MathOperations.isPalindrome("race car"));
+    }
+
+    @Test
+    void testIsPalindromeIgnoresCaseAndPunctuation() {
+        assertTrue(MathOperations.isPalindrome("A man, a plan, a canal: Panama!"));
+        assertTrue(MathOperations.isPalindrome("No 'x' in Nixon"));
+        assertFalse(MathOperations.isPalindrome("Panama canal"));
     }
     
     @Test
@@ -207,6 +216,9 @@ class MathOperationsTests {
     @Test
     void testGcdWithZero() {
         assertEquals(5, MathOperations.gcd(5, 0));
+        assertEquals(5, MathOperations.gcd(0, 5));
+        assertEquals(6, MathOperations.gcd(54, 24));
+        assertEquals(6, MathOperations.gcd(24, 54));
     }
     
     // ============ isPerfectSquare Tests ============
@@ -243,6 +255,17 @@ class MathOperationsTests {
     @Test
     void testReverseArrayEmpty() {
         assertArrayEquals(new int[0], MathOperations.reverseArray(new int[0]));
+    }
+
+    @Test
+    void testReverseArrayDoesNotMutateInput() {
+        int[] input = {7, 8, 9};
+        int[] originalCopy = input.clone();
+        int[] reversed = MathOperations.reverseArray(input);
+
+        assertArrayEquals(new int[]{9, 8, 7}, reversed);
+        assertArrayEquals(originalCopy, input);
+        assertNotSame(input, reversed);
     }
     
     @Test
@@ -294,5 +317,16 @@ class MathOperationsTests {
     @Test
     void testBubbleSortNull() {
         assertNull(MathOperations.bubbleSort(null));
+    }
+
+    @Test
+    void testBubbleSortDoesNotMutateInputAndHandlesDuplicates() {
+        int[] input = {3, -1, 3, 2, -1};
+        int[] originalCopy = input.clone();
+        int[] sorted = MathOperations.bubbleSort(input);
+
+        assertArrayEquals(new int[]{-1, -1, 2, 3, 3}, sorted);
+        assertArrayEquals(originalCopy, input);
+        assertNotSame(input, sorted);
     }
 }

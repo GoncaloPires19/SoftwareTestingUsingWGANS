@@ -1,5 +1,7 @@
 package dataloader;
 
+import java.util.Arrays;
+
 /**
  * Utility class for mathematical and algorithmic operations.
  * Used as target class for EvoSuite automated test generation.
@@ -31,13 +33,9 @@ public class MathOperations {
         if (numbers == null || numbers.length == 0) {
             throw new IllegalArgumentException("Array cannot be null or empty");
         }
-        int maximum = numbers[0];
-        for (int num : numbers) {
-            if (num > maximum) {
-                maximum = num;
-            }
-        }
-        return maximum;
+        return Arrays.stream(numbers)
+                .max()
+                .orElseThrow(() -> new IllegalArgumentException("Array cannot be null or empty"));
     }
     
     /**
@@ -47,13 +45,9 @@ public class MathOperations {
         if (numbers == null || numbers.length == 0) {
             throw new IllegalArgumentException("Array cannot be null or empty");
         }
-        int minimum = numbers[0];
-        for (int num : numbers) {
-            if (num < minimum) {
-                minimum = num;
-            }
-        }
-        return minimum;
+        return Arrays.stream(numbers)
+                .min()
+                .orElseThrow(() -> new IllegalArgumentException("Array cannot be null or empty"));
     }
     
     /**
@@ -102,16 +96,7 @@ public class MathOperations {
             return true;
         }
         String clean = str.toLowerCase().replaceAll("[^a-z0-9]", "");
-        int left = 0;
-        int right = clean.length() - 1;
-        while (left < right) {
-            if (clean.charAt(left) != clean.charAt(right)) {
-                return false;
-            }
-            left++;
-            right--;
-        }
-        return true;
+        return clean.contentEquals(new StringBuilder(clean).reverse());
     }
     
     /**
@@ -180,15 +165,7 @@ public class MathOperations {
             return null;
         }
         int[] sorted = arr.clone();
-        for (int i = 0; i < sorted.length - 1; i++) {
-            for (int j = 0; j < sorted.length - 1 - i; j++) {
-                if (sorted[j] > sorted[j + 1]) {
-                    int temp = sorted[j];
-                    sorted[j] = sorted[j + 1];
-                    sorted[j + 1] = temp;
-                }
-            }
-        }
+        Arrays.sort(sorted);
         return sorted;
     }
 }

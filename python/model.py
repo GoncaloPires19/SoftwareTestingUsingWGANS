@@ -13,6 +13,22 @@ import torch
 import torch.nn as nn
 
 
+def _critic_linear(in_features: int, out_features: int, use_spectral_norm: bool) -> nn.Linear:
+    layer = nn.Linear(in_features, out_features)
+    if use_spectral_norm:
+        return nn.utils.spectral_norm(layer)
+    return layer
+
+
+def _weights_init(m: nn.Module) -> None:
+    """He/Kaiming init for Linear layers — improves convergence speed."""
+    if isinstance(m, nn.Linear):
+        nn.init.kaiming_normal_(m.weight, a=0.2, mode='fan_in', nonlinearity='leaky_relu')
+        if m.bias is not None:
+            nn.init.zeros_(m.bias)
+
+
+
 class Generator(nn.Module):
     """
     Generator network for WGAN-GP.
@@ -43,6 +59,8 @@ class Generator(nn.Module):
         
         self.leaky_relu = nn.LeakyReLU(0.2)
         self.tanh = nn.Tanh()  # Ensures output in [-1, 1] for normalized data
+
+        self.apply(_weights_init)
         
     def forward(self, z):
         """
@@ -76,15 +94,18 @@ class Critic(nn.Module):
     Architecture:
         input_dim -> 512 (LeakyReLU) -> 256 (LeakyReLU) -> 1 (Linear)
     """
-    def __init__(self, input_dim, output_dim=1):
+    def __init__(self, input_dim, output_dim=1, use_spectral_norm=False):
         super(Critic, self).__init__()
         self.input_dim = input_dim
+        self.use_spectral_norm = use_spectral_norm
         
-        self.fc1 = nn.Linear(input_dim, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 1)
+        self.fc1 = _critic_linear(input_dim, 512, use_spectral_norm)
+        self.fc2 = _critic_linear(512, 256, use_spectral_norm)
+        self.fc3 = _critic_linear(256, 1, use_spectral_norm)
         
         self.leaky_relu = nn.LeakyReLU(0.2)
+
+        self.apply(_weights_init)
         
     def forward(self, x):
         """

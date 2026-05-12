@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import json
 from datetime import datetime
+from time import perf_counter
 
 from model import Generator, Critic
 from junit_datasets import JUnitDataset
@@ -70,7 +71,72 @@ PROFILES = {
         'n_critic': 15,
         'epochs': 150,
         'description': 'Designed specifically for extremely small datasets (<150 samples) to prevent mode collapse.'
-    }
+    },
+    'improved': {
+        'epochs': 200,
+        'batch_size': 16,
+        'learning_rate': 0.00003,
+        'lambda_gp': 8.0,
+        'n_critic': 7,
+        'feature_matching_weight': 0.5,
+        'description': (
+            'v2 — log1p + feature matching + weight init. '
+            'Addresses: heavy-tail skew, std collapse on statements, mode collapse. '
+            'Lower n_critic vs optimized to balance G/C when FM loss is active.'
+        ),
+    },
+    'improved_control': {
+        'epochs': 200,
+        'batch_size': 16,
+        'learning_rate': 0.00003,
+        'lambda_gp': 6.0,
+        'n_critic': 7,
+        'feature_matching_weight': 0.5,
+        'feature_matching_mode': 'variance_scaled',
+        'eval_interval': 5,
+        'early_stopping_patience': 20,
+        'scheduler_patience': 8,
+        'scheduler_factor': 0.5,
+        'description': (
+            'Phase 1 control profile: sparse evaluation + LR scheduler + early stopping. '
+            'Targets late-epoch collapse while preserving the improved baseline behavior.'
+        ),
+    },
+    'improved_runtime': {
+        'epochs': 160,
+        'batch_size': 16,
+        'learning_rate': 0.00003,
+        'lambda_gp': 6.0,
+        'n_critic': 5,
+        'feature_matching_weight': 0.4,
+        'feature_matching_mode': 'variance_scaled',
+        'eval_interval': 5,
+        'early_stopping_patience': 15,
+        'scheduler_patience': 6,
+        'scheduler_factor': 0.5,
+        'description': (
+            'Phase 1 runtime profile: lighter critic pressure and sparse evaluation. '
+            'Prioritizes faster iteration with checkpoint-safe early stopping.'
+        ),
+    },
+    'improved_spectral': {
+        'epochs': 200,
+        'batch_size': 16,
+        'learning_rate': 0.00003,
+        'lambda_gp': 4.0,
+        'n_critic': 5,
+        'feature_matching_weight': 0.5,
+        'feature_matching_mode': 'variance_scaled',
+        'critic_spectral_norm': True,
+        'eval_interval': 5,
+        'early_stopping_patience': 15,
+        'scheduler_patience': 6,
+        'scheduler_factor': 0.5,
+        'description': (
+            'Experimental profile with critic spectral normalization enabled. '
+            'Uses lighter GP and critic pressure to avoid over-constraining the critic.'
+        ),
+    },
 }
 
 
@@ -110,6 +176,41 @@ def _resolve_dataset_path(data_path: str | None) -> str:
     if data_path:
         return data_path
     return str(candidates[0])
+
+
+def _resolve_device(requested_device: str) -> str:
+    if requested_device == 'auto':
+        return 'cuda' if torch.cuda.is_available() else 'cpu'
+    if requested_device == 'cuda' and not torch.cuda.is_available():
+        print('Requested CUDA but no GPU is available; falling back to CPU.')
+        return 'cpu'
+    return requested_device
+
+
+def _resolve_metric_value(metric_name: str, metrics: dict, metrics_v2: dict, coverage_pct: float) -> float:
+    if metric_name == 'coverage':
+        return float(coverage_pct)
+    if metric_name == 'robust_v2':
+        return float(metrics_v2['robust_v2_score'])
+    return float(metrics['robust_score'])
+
+
+def _should_run_epoch_eval(epoch_index: int, epochs: int, eval_interval: int) -> bool:
+    if eval_interval <= 1:
+        return True
+    epoch_number = epoch_index + 1
+    return epoch_number == 1 or epoch_number == epochs or (epoch_number % eval_interval) == 0
+
+
+def _build_feature_matching_weights(real_data: np.ndarray, mode: str) -> np.ndarray:
+    if mode == 'uniform':
+        return np.ones(real_data.shape[1], dtype=np.float32)
+
+    feature_std = real_data.std(axis=0)
+    safe_std = np.maximum(feature_std, 1e-8)
+    weights = safe_std.mean() / safe_std
+    weights = np.clip(weights, 0.5, 2.0)
+    return weights.astype(np.float32)
 
 
 def _evaluate_synthetic_batch(fake_eval: np.ndarray, real_stats: dict, max_values: np.ndarray):
@@ -251,6 +352,10 @@ def train_basic_profile(
     best_metric='robust_v2',
     warmup_epochs=5,
     batch_log_interval=0,
+    eval_interval=None,
+    early_stopping_patience=None,
+    scheduler_patience=None,
+    scheduler_factor=None,
 ):
     """Train with a basic profile configuration."""
 
@@ -260,6 +365,17 @@ def train_basic_profile(
     profile = PROFILES[profile_name]
     if epochs is None:
         epochs = profile['epochs']
+
+    device = _resolve_device(device)
+
+    if eval_interval is None:
+        eval_interval = int(profile.get('eval_interval', 1))
+    if early_stopping_patience is None:
+        early_stopping_patience = profile.get('early_stopping_patience')
+    if scheduler_patience is None:
+        scheduler_patience = profile.get('scheduler_patience')
+    if scheduler_factor is None:
+        scheduler_factor = float(profile.get('scheduler_factor', 0.5))
 
     set_random_seed(seed)
 
@@ -298,6 +414,9 @@ def train_basic_profile(
     print(f"  Eval seed: {eval_seed}")
     print(f"  Best metric: {best_metric}")
     print(f"  Warmup epochs: {warmup_epochs}")
+    print(f"  Eval interval: {eval_interval}")
+    print(f"  Early stopping patience: {early_stopping_patience}")
+    print(f"  Scheduler patience/factor: {scheduler_patience}/{scheduler_factor}")
     print(f"  Output: {output_dir}")
     print(f"{'='*70}\n")
 
@@ -314,10 +433,24 @@ def train_basic_profile(
 
     model_config = ModelConfig()
     generator = Generator(z_dim=model_config.z_dim, output_dim=model_config.output_dim).to(device)
-    critic = Critic(input_dim=model_config.output_dim).to(device)
+    critic = Critic(
+        input_dim=model_config.output_dim,
+        use_spectral_norm=profile.get('critic_spectral_norm', False),
+    ).to(device)
 
     optimizer_g = optim.Adam(generator.parameters(), lr=profile['learning_rate'], betas=(0.5, 0.999))
     optimizer_c = optim.Adam(critic.parameters(), lr=profile['learning_rate'], betas=(0.5, 0.999))
+    scheduler_g = None
+    if scheduler_patience is not None and scheduler_patience > 0:
+        scheduler_g = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer_g,
+            mode='max',
+            factor=scheduler_factor,
+            patience=int(scheduler_patience),
+            threshold=1e-3,
+            threshold_mode='rel',
+            min_lr=1e-6,
+        )
 
     with open(norm_stats_path, 'r', encoding='utf-8') as f:
         norm_stats = json.load(f)
@@ -326,11 +459,35 @@ def train_basic_profile(
     max_values = np.array([norm_stats['features'][f'feature_{i}']['max'] for i in range(num_features)])
     min_values = np.array([norm_stats['features'][f'feature_{i}']['min'] for i in range(num_features)])
 
+    _log_transform = norm_stats.get('log_transform', False)
+
     def denormalize(normalized_data):
         data_01 = (normalized_data + 1) / 2
-        return data_01 * (max_values - min_values) + min_values
+        linear = data_01 * (max_values - min_values) + min_values
+        if _log_transform:
+            # Invert log1p: x_raw = expm1(log_val)
+            return np.expm1(np.clip(linear, 0, None))
+        return linear
+
+    # Coverage metrics compare fake_eval (original space) vs real max values.
+    # When log_transform is active, norm_stats max/min are in log space — convert back.
+    eval_max_values = (
+        np.expm1(np.clip(max_values, 0, None)) if _log_transform else max_values
+    )
 
     real_stats = _compute_real_feature_stats(dataset.raw_data)
+
+    # Feature matching tensors — real mean/std in normalized space for generator penalty.
+    # Computed once from the full dataset; used as a soft constraint on the Generator.
+    _fm_weight = profile.get('feature_matching_weight', 0.5)
+    _fm_mode = profile.get('feature_matching_mode', 'uniform')
+    _real_norm_mean = dataset.normalized_data.mean(dim=0).to(device)   # (num_features,)
+    _real_norm_std  = dataset.normalized_data.std(dim=0).to(device)    # (num_features,)
+    _fm_feature_weights = torch.tensor(
+        _build_feature_matching_weights(dataset.raw_data, _fm_mode),
+        dtype=dataset.normalized_data.dtype,
+        device=device,
+    )
 
     eval_generator = torch.Generator(device=device)
     eval_generator.manual_seed(eval_seed)
@@ -343,10 +500,15 @@ def train_basic_profile(
     best_robust_epoch = 0
     best_robust_v2_score = float("-inf")
     best_robust_v2_epoch = 0
+    best_selected_metric = float("-inf")
+    best_selected_metric_epoch = 0
+    epochs_without_improvement = 0
+    last_eval_record = None
 
     print("Starting training...\n")
 
     for epoch in range(epochs):
+        epoch_start = perf_counter()
         generator.train()
         critic.train()
 
@@ -386,6 +548,16 @@ def train_basic_profile(
             critic_fake = critic(fake_data)
             gen_loss = -critic_fake.mean()
 
+            # Feature matching loss: penalise deviation of fake mean/std from real mean/std.
+            # This directly fights mode collapse and std_distance_z drift.
+            if _fm_weight > 0:
+                fake_mean = fake_data.mean(dim=0)
+                fake_std  = fake_data.std(dim=0)
+                fm_mean_loss = ((fake_mean - _real_norm_mean).pow(2) * _fm_feature_weights).mean()
+                fm_std_loss = ((fake_std - _real_norm_std).pow(2) * _fm_feature_weights).mean()
+                fm_loss = fm_mean_loss + fm_std_loss
+                gen_loss = gen_loss + _fm_weight * fm_loss
+
             gen_loss.backward()
             optimizer_g.step()
 
@@ -403,15 +575,40 @@ def train_basic_profile(
         avg_g_loss = epoch_g_loss / num_batches
         avg_c_loss = epoch_c_loss / (num_batches * profile['n_critic'])
 
-        with torch.no_grad():
-            fake_eval_norm = generator(z_eval_fixed).cpu().numpy()
-            fake_eval = denormalize(fake_eval_norm)
+        eval_seconds = 0.0
+        eval_ran = _should_run_epoch_eval(epoch, epochs, eval_interval)
+        if eval_ran or last_eval_record is None:
+            eval_start = perf_counter()
+            with torch.no_grad():
+                fake_eval_norm = generator(z_eval_fixed).cpu().numpy()
+                fake_eval = denormalize(fake_eval_norm)
 
-        metrics = _evaluate_synthetic_batch(fake_eval, real_stats, max_values)
-        metrics_v2 = _evaluate_synthetic_batch_v2(fake_eval, real_stats, max_values)
-        max_achieved = metrics['max_achieved']
-        coverage_pct = metrics['coverage_max']
-        diversity = len(np.unique(fake_eval.round(1), axis=0)) / len(fake_eval)
+            metrics = _evaluate_synthetic_batch(fake_eval, real_stats, eval_max_values)
+            metrics_v2 = _evaluate_synthetic_batch_v2(fake_eval, real_stats, eval_max_values)
+            max_achieved = metrics['max_achieved']
+            coverage_pct = metrics['coverage_max']
+            diversity = len(np.unique(fake_eval.round(1), axis=0)) / len(fake_eval)
+            selected_metric_value = _resolve_metric_value(best_metric, metrics, metrics_v2, coverage_pct)
+            eval_seconds = perf_counter() - eval_start
+            last_eval_record = {
+                'metrics': metrics,
+                'metrics_v2': metrics_v2,
+                'max_achieved': max_achieved,
+                'coverage_pct': coverage_pct,
+                'diversity': diversity,
+                'selected_metric_value': selected_metric_value,
+                'eval_seconds': eval_seconds,
+            }
+        else:
+            metrics = last_eval_record['metrics']
+            metrics_v2 = last_eval_record['metrics_v2']
+            max_achieved = last_eval_record['max_achieved']
+            coverage_pct = last_eval_record['coverage_pct']
+            diversity = last_eval_record['diversity']
+            selected_metric_value = last_eval_record['selected_metric_value']
+            eval_seconds = 0.0
+
+        epoch_seconds = perf_counter() - epoch_start
 
         history.append({
             'epoch': epoch + 1,
@@ -440,6 +637,11 @@ def train_basic_profile(
             'q50_methods': metrics_v2['q50_achieved'][0],
             'q50_branches': metrics_v2['q50_achieved'][1],
             'q50_statements': metrics_v2['q50_achieved'][2],
+            'lr_g': optimizer_g.param_groups[0]['lr'],
+            'epoch_seconds': epoch_seconds,
+            'eval_seconds': eval_seconds,
+            'train_seconds': max(epoch_seconds - eval_seconds, 0.0),
+            'eval_ran': int(eval_ran),
         })
 
         should_select_best = (epoch + 1) > warmup_epochs
@@ -463,12 +665,24 @@ def train_basic_profile(
             torch.save(generator.state_dict(), models_dir / 'generator_best_by_robust_v2.pth')
             torch.save(critic.state_dict(), models_dir / 'critic_best_by_robust_v2.pth')
 
+        if should_select_best and eval_ran:
+            if selected_metric_value > best_selected_metric:
+                best_selected_metric = selected_metric_value
+                best_selected_metric_epoch = epoch + 1
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+
+            if scheduler_g is not None:
+                scheduler_g.step(selected_metric_value)
+
         if (epoch + 1) % 10 == 0 or (epoch + 1) == epochs:
             print(f"Epoch {epoch+1:3d}/{epochs} | "
                   f"G Loss: {avg_g_loss:7.4f} | "
                   f"C Loss: {avg_c_loss:7.4f} | "
                   f"CovMax/P95/P99: {coverage_pct:.2f}/{metrics['coverage_p95']:.2f}/{metrics['coverage_p99']:.2f}% | "
                   f"R1/R2: {metrics['robust_score']:.2f}/{metrics_v2['robust_v2_score']:.2f} | "
+                  f"Time: {epoch_seconds:.2f}s/{eval_seconds:.2f}s | "
                   f"Max: [{max_achieved[0]:.0f}, {max_achieved[1]:.0f}, {max_achieved[2]:.0f}]")
 
         if (epoch + 1) % 10 == 0 or (epoch + 1) == epochs:
@@ -479,6 +693,14 @@ def train_basic_profile(
                 'optimizer_g': optimizer_g.state_dict(),
                 'optimizer_c': optimizer_c.state_dict(),
             }, models_dir / f'checkpoint_epoch_{epoch+1}.pth')
+
+        if should_select_best and eval_ran and early_stopping_patience is not None and early_stopping_patience > 0:
+            if epochs_without_improvement >= int(early_stopping_patience):
+                print(
+                    f"Early stopping at epoch {epoch + 1}: no {best_metric} improvement "
+                    f"for {epochs_without_improvement} evaluated epochs since epoch {best_selected_metric_epoch}."
+                )
+                break
 
     torch.save(generator.state_dict(), models_dir / 'generator_final.pth')
     torch.save(critic.state_dict(), models_dir / 'critic_final.pth')
@@ -519,8 +741,13 @@ def train_basic_profile(
         'timestamp': timestamp,
         'eval_samples': eval_samples,
         'eval_seed': eval_seed,
+        'eval_interval': eval_interval,
         'best_metric': best_metric,
         'warmup_epochs': warmup_epochs,
+        'feature_matching_mode': _fm_mode,
+        'early_stopping_patience': early_stopping_patience,
+        'scheduler_patience': scheduler_patience,
+        'scheduler_factor': scheduler_factor,
         'best_by_coverage': {
             'epoch': best_epoch,
             'score': best_coverage,
@@ -605,7 +832,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=42,
                         help='Random seed')
     parser.add_argument('--device', type=str, default='cpu',
-                        choices=['cpu', 'cuda'],
+                        choices=['cpu', 'cuda', 'auto'],
                         help='Device to use')
     parser.add_argument('--data-path', type=str, default=None,
                         help='Path to input CSV (auto-resolved when omitted)')
@@ -635,6 +862,14 @@ if __name__ == '__main__':
                         help='Do not update best checkpoints before this epoch (exclusive)')
     parser.add_argument('--batch-log-interval', type=int, default=0,
                         help='Optional interval for batch-level progress logs (0 disables)')
+    parser.add_argument('--eval-interval', type=int, default=None,
+                        help='Run full deterministic evaluation every N epochs (1 = every epoch)')
+    parser.add_argument('--early-stopping-patience', type=int, default=None,
+                        help='Stop after this many evaluated epochs without improvement on best-metric')
+    parser.add_argument('--scheduler-patience', type=int, default=None,
+                        help='Reduce generator LR after this many evaluated epochs without improvement')
+    parser.add_argument('--scheduler-factor', type=float, default=None,
+                        help='Multiplicative LR reduction factor used by ReduceLROnPlateau')
 
     args = parser.parse_args()
 
@@ -656,4 +891,8 @@ if __name__ == '__main__':
         best_metric=args.best_metric,
         warmup_epochs=args.warmup_epochs,
         batch_log_interval=args.batch_log_interval,
+        eval_interval=args.eval_interval,
+        early_stopping_patience=args.early_stopping_patience,
+        scheduler_patience=args.scheduler_patience,
+        scheduler_factor=args.scheduler_factor,
     )

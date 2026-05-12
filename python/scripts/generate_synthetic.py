@@ -216,9 +216,14 @@ class SyntheticTestGenerator:
                     denorm = (features + 1) / 2 * feature_range + feature_min
                 else:
                     denorm[:, col_idx] = (features[:, col_idx] + 1) / 2 * feature_range + feature_min
-            
+
             logger.info(f"   Feature {col_idx}: denormalized to range [{feature_min:.2f}, {feature_max:.2f}]")
-        
+
+        # If training used log1p transform, invert it now to get original scale values.
+        if norm_stats.get('log_transform', False):
+            denorm = np.expm1(np.clip(denorm, 0, None))
+            logger.info("   Applied expm1 inverse transform (log_transform=True in norm_stats)")
+
         return denorm
     
     def save_to_csv(

@@ -38,7 +38,7 @@ class JUnitDataset(Dataset):
         norm_stats: Dictionary with min/max for denormalization
     """
     
-    def __init__(self, csv_path, stats_output_path=None):
+    def __init__(self, csv_path, stats_output_path=None, use_log_transform=True):
         """
         Initialize dataset.
         
@@ -46,6 +46,10 @@ class JUnitDataset(Dataset):
             csv_path (str): Path to CSV file with test data (no header, 3 columns: methods, branches, statements)
             stats_output_path (str, optional): Where to save normalization statistics JSON.
                                              If None, uses same directory as CSV with _norm_stats.json suffix
+            use_log_transform (bool): Apply log1p before normalizing. Strongly recommended for
+                                      count-type features with heavy right tails (skew>2).
+                                      Transforms x → log(1+x) before [-1,1] normalization.
+                                      Denormalization uses expm1(linear_denorm(x)).
         """
         df = pd.read_csv(csv_path, header=None)
         
@@ -55,10 +59,20 @@ class JUnitDataset(Dataset):
         
         # Store raw test data (3 features: methods, branches, statements)
         self.raw_data = df.values
-        self.data = torch.tensor(df.values, dtype=torch.float32)
+        self.use_log_transform = use_log_transform
+
+        if use_log_transform:
+            # log1p compresses heavy-tailed count distributions (skew 3-7 → ~1-2)
+            # making them far more learnable for the WGAN Generator.
+            log_data = np.log1p(df.values.astype(np.float64))
+            self.data = torch.tensor(log_data, dtype=torch.float32)
+            logger.info("log1p transform applied to all features")
+        else:
+            self.data = torch.tensor(df.values, dtype=torch.float32)
         
-        # Compute normalization statistics BEFORE normalization
+        # Compute normalization statistics BEFORE normalization (on possibly log-transformed data)
         self.norm_stats = self._compute_normalization_stats()
+        self.norm_stats["log_transform"] = use_log_transform
         
         # Normalize data for GAN training
         self.normalized_data = self._normalize_data_with_stats()
@@ -179,13 +193,14 @@ class JUnitDataset(Dataset):
         """
         Denormalize data from [-1, 1] back to original scale.
         
-        Uses stored normalization statistics for accuracy.
+        If use_log_transform=True was set at construction, this also inverts
+        the log1p transform via expm1: x_raw = expm1(linear_denorm(x_norm)).
         
         Args:
             normalized_data: Data in [-1, 1] range (numpy array or torch tensor)
         
         Returns:
-            numpy array: Data in original scale
+            numpy array: Data in original raw scale
         """
         if isinstance(normalized_data, torch.Tensor):
             normalized_data = normalized_data.cpu().numpy()
@@ -203,11 +218,13 @@ class JUnitDataset(Dataset):
             
             # Inverse of normalization: x = (x_norm + 1) / 2 * range + min
             if len(denormalized.shape) == 1:
-                # 1D case
                 denormalized = (denormalized + 1) / 2 * feature_range + feature_min
             else:
-                # 2D case
                 denormalized[:, col_idx] = (normalized_data[:, col_idx] + 1) / 2 * feature_range + feature_min
+        
+        # If log1p was applied during loading, invert it now
+        if getattr(self, 'use_log_transform', False) or self.norm_stats.get('log_transform', False):
+            denormalized = np.expm1(np.clip(denormalized, 0, None))
         
         return denormalized
 
