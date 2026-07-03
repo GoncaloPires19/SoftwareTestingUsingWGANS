@@ -102,59 +102,95 @@ def _extract_norm_stats_candidates_from_run_config(model_path: Path) -> list[Pat
     return candidates
 
 
+def _load_model_config_from_run(generator_path: Path) -> dict:
+    """
+    Read model architecture parameters from the config.json saved next to the
+    generator checkpoint. Falls back to safe defaults if not found.
+    """
+    # config.json lives in the same directory as the checkpoint
+    config_path = generator_path.parent / "config.json"
+    if not config_path.exists():
+        logger.warning(
+            f"config.json not found at {config_path}. "
+            "Using default architecture (z_dim=100, output_dim=3, hidden_dims_g=[256,512])."
+        )
+        return {}
+
+    with open(config_path) as f:
+        cfg = json.load(f)
+
+    model_cfg = cfg.get("model", {})
+    logger.info(f"Loaded model config from {config_path}: {model_cfg}")
+    return model_cfg
+
+
 class SyntheticTestGenerator:
-    """Generate synthetic tests using trained generator"""
-    
+    """
+    Generate synthetic JUnit test metrics using a trained WGAN-GP generator.
+
+    Reads the model architecture from the config.json saved during training,
+    so there is no need to manually specify z_dim, output_dim, or hidden_dims.
+    """
+
     def __init__(
         self,
         generator_path: Path,
-        z_dim: int = 100,
-        output_dim: int = 3,
-        device: str = "cpu"
+        z_dim: int | None = None,
+        output_dim: int | None = None,
+        device: str = "cpu",
     ):
         """
         Args:
-            generator_path: Path to saved generator weights
-            z_dim: Latent space dimension
-            output_dim: Output feature dimension (4: methods, branches, statements, method_coverage)
-            device: "cpu" or "cuda"
+            generator_path: Path to saved generator weights (.pth).
+            z_dim: Override latent dimension. Auto-detected from config.json if None.
+            output_dim: Override output dimension. Auto-detected from config.json if None.
+            device: "cpu" or "cuda".
         """
         self.device = torch.device(device)
-        
-        # Load generator
+
+        model_cfg = _load_model_config_from_run(generator_path)
+
+        resolved_z_dim = z_dim or model_cfg.get("z_dim", 100)
+        resolved_output_dim = output_dim or model_cfg.get("output_dim", 3)
+        hidden_dims_g = model_cfg.get("hidden_dims_g", [256, 512])
+
+        self.z_dim = resolved_z_dim
+        self.output_dim = resolved_output_dim
+
         self.generator = Generator(
-            z_dim=z_dim,
-            output_dim=output_dim,
+            z_dim=resolved_z_dim,
+            output_dim=resolved_output_dim,
+            hidden_dims=hidden_dims_g,
         ).to(self.device)
-        
-        self.generator.load_state_dict(torch.load(generator_path, map_location=self.device))
+
+        state = torch.load(generator_path, map_location=self.device)
+        self.generator.load_state_dict(state)
         self.generator.eval()
-        
-        logger.info(f"✅ Loaded generator from {generator_path}")
+
+        logger.info(
+            f"Loaded generator from {generator_path} "
+            f"(z_dim={resolved_z_dim}, output_dim={resolved_output_dim}, "
+            f"hidden_dims={hidden_dims_g})"
+        )
     
     def generate_samples(self, num_samples: int = 1000) -> np.ndarray:
         """
-        Generate synthetic test samples
-        
+        Generate synthetic test samples.
+
         Args:
-            num_samples: Number of samples to generate
-        
+            num_samples: Number of samples to generate.
+
         Returns:
-            (num_samples, 4) array of normalized features
+            numpy array of shape (num_samples, output_dim) in normalised [-1, 1] space.
         """
-        logger.info(f"🧬 Generating {num_samples} synthetic samples...")
-        
+        logger.info(f"Generating {num_samples} synthetic samples...")
+
         with torch.no_grad():
-            z = torch.randn(num_samples, 100, device=self.device)
-            synthetic = self.generator(z)
-            synthetic = synthetic.cpu().numpy()
-        
-        # Clip to [-1, 1]
+            z = torch.randn(num_samples, self.z_dim, device=self.device)
+            synthetic = self.generator(z).cpu().numpy()
+
         synthetic = np.clip(synthetic, -1, 1)
-        
-        logger.info(f"✅ Generated samples shape: {synthetic.shape}")
-        logger.info(f"   Range: [{synthetic.min():.4f}, {synthetic.max():.4f}]")
-        
+        logger.info(f"Generated shape: {synthetic.shape}, range=[{synthetic.min():.4f}, {synthetic.max():.4f}]")
         return synthetic
     
     def denormalize_features(self, features: np.ndarray, norm_stats: dict = None) -> np.ndarray:
@@ -275,7 +311,7 @@ class SyntheticTestGenerator:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(output_path, index=False, header=include_header)
         
-        logger.info(f"✅ Saved {len(df)} samples to {output_path}")
+        logger.info(f"Saved {len(df)} samples to {output_path}")
         logger.info(f"   Features: methods={df['methods'].mean():.1f} ± {df['methods'].std():.1f}")
         logger.info(f"             branches={df['branches'].mean():.1f} ± {df['branches'].std():.1f}")
         logger.info(f"             statements={df['statements'].mean():.1f} ± {df['statements'].std():.1f}")

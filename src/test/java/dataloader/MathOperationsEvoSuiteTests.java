@@ -73,8 +73,10 @@ class MathOperationsEvoSuiteTests {
 
     @Test
     void testFibonacciSamplesFromEvoSuite() {
-        assertEquals(1, MathOperations.fibonacci(1));
-        assertEquals(1210320976, MathOperations.fibonacci(1884));
+        assertEquals(1L, MathOperations.fibonacci(1));
+        assertEquals(55L, MathOperations.fibonacci(10));
+        // n > 92 now throws ArithmeticException instead of silently overflowing
+        assertThrows(ArithmeticException.class, () -> MathOperations.fibonacci(1884));
     }
 
     @Test
