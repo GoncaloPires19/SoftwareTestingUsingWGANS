@@ -507,6 +507,12 @@ def main() -> None:
     )
     parser.add_argument("--epochs", type=int, default=None, help="Override epoch count")
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--batch-size", type=int, default=None,
+                        help="Override batch size (default from config: 8; recomendado para 398 amostras: 32-64)")
+    parser.add_argument("--fm-weight", type=float, default=None,
+                        help="Override feature matching loss weight (default 0.1; runs anteriores usaram 0.3)")
+    parser.add_argument("--learning-rate", type=float, default=None,
+                        help="Override learning rate (default 2e-5)")
     parser.add_argument("--no-feature-matching", action="store_true")
     parser.add_argument("--no-early-stopping", action="store_true")
     parser.add_argument("--no-minibatch-std", action="store_true")
@@ -523,6 +529,12 @@ def main() -> None:
         config.seed = args.seed
     if args.epochs is not None:
         config.epochs = args.epochs
+    if args.batch_size is not None:
+        config.batch_size = args.batch_size
+    if args.fm_weight is not None:
+        config.feature_matching_weight = args.fm_weight
+    if args.learning_rate is not None:
+        config.learning_rate = args.learning_rate
     if args.no_feature_matching:
         config.feature_matching_weight = 0.0
     if args.no_early_stopping:
