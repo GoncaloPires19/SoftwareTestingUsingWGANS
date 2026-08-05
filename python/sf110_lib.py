@@ -29,13 +29,18 @@ FEATURES: list[str] = [
 ]
 
 
-def load_bridge(path: str | Path, features: list[str] | None = None):
+def load_bridge(path: str | Path, features: list[str] | None = None, target: str = "testable"):
     """
     Load the bridge dataset (structure -> testability).
 
+    Args:
+        target: column to use as the label. "testable" (default) gives the binary
+            classification label. Any other bridge column (e.g. "mutation_score",
+            "test_strength", "coverage") gives a continuous regression target.
+
     Returns:
         X       : (N, F) float feature matrix in FEATURES order.
-        y       : (N,) int testability labels (1 = covered/testable).
+        y       : (N,) int testability labels, or (N,) float continuous target.
         groups  : (N,) project name per row (for leave-projects-out CV).
         rows    : list of raw dict rows (for downstream score arithmetic).
     """
@@ -45,7 +50,10 @@ def load_bridge(path: str | Path, features: list[str] | None = None):
         rows = list(csv.DictReader(f))
 
     X = np.array([[float(r[c]) for c in features] for r in rows], dtype=np.float64)
-    y = np.array([int(r["testable"]) for r in rows], dtype=np.int64)
+    if target == "testable":
+        y = np.array([int(r[target]) for r in rows], dtype=np.int64)
+    else:
+        y = np.array([float(r[target]) for r in rows], dtype=np.float64)
     groups = np.array([r["project"] for r in rows])
     return X, y, groups, rows
 
