@@ -40,11 +40,23 @@ class Generator(nn.Module):
     Maps latent noise vectors to synthetic JUnit test metrics.
     Output is bounded to [-1, 1] via Tanh.
 
+    Conditioning (cond_dim > 0): a condition vector is concatenated to the
+    latent noise, making this a conditional GAN in the sense of Mirza and
+    Osindero. It exists for the test-input corpus, where some dimensions are
+    only meaningful given another: an input declaring an array of length k
+    leaves slots k..7 unused, and an unconditional MLP has no way to represent
+    that hard dependency — it must infer it from marginals it cannot see.
+    Feeding the length in as a condition states it instead of hoping for it.
+
+    cond_dim defaults to 0, which reproduces the unconditional network exactly,
+    so callers that predate conditioning are unaffected.
+
     Args:
         z_dim: Latent space dimension. Default 100.
         output_dim: Number of output features (e.g. 3 = methods, branches, statements).
         hidden_dims: Hidden layer sizes. Defaults to [256, 512].
         use_batch_norm: Add BatchNorm1d after each hidden layer.
+        cond_dim: Condition vector width; 0 disables conditioning.
     """
 
     def __init__(
@@ -53,16 +65,18 @@ class Generator(nn.Module):
         output_dim: int = 3,
         hidden_dims: List[int] | None = None,
         use_batch_norm: bool = False,
+        cond_dim: int = 0,
     ):
         super().__init__()
         self.z_dim = z_dim
         self.output_dim = output_dim
+        self.cond_dim = cond_dim
 
         if hidden_dims is None:
             hidden_dims = [256, 512]
 
         layers: list[nn.Module] = []
-        in_dim = z_dim
+        in_dim = z_dim + cond_dim
         for h in hidden_dims:
             layers.append(nn.Linear(in_dim, h))
             if use_batch_norm:
@@ -76,7 +90,13 @@ class Generator(nn.Module):
         self.net = nn.Sequential(*layers)
         self.apply(_weights_init)
 
-    def forward(self, z: torch.Tensor) -> torch.Tensor:
+    def forward(self, z: torch.Tensor, cond: torch.Tensor | None = None) -> torch.Tensor:
+        if self.cond_dim:
+            if cond is None:
+                raise ValueError(
+                    f"Generator built with cond_dim={self.cond_dim} requires a condition tensor"
+                )
+            z = torch.cat([z, cond], dim=1)
         return self.net(z)
 
 
@@ -94,6 +114,12 @@ class Critic(nn.Module):
     Spectral normalization is theoretically incompatible with gradient penalty
     and MUST NOT be combined with lambda_gp > 0.
 
+    Conditioning mirrors the Generator: when cond_dim > 0 the condition vector
+    is concatenated to the sample before the trunk, so the critic judges the
+    pair (sample, condition) rather than the sample alone. Without this the
+    critic cannot penalise a sample that is plausible on its own but wrong for
+    its condition, and the conditioning would carry no training signal.
+
     Args:
         input_dim: Input feature count. Must match Generator output_dim.
         hidden_dims: Hidden layer sizes. Defaults to [512, 256].
@@ -101,6 +127,7 @@ class Critic(nn.Module):
             Raises a warning if True (incompatible with GP).
         use_minibatch_std: Append batch std deviation before the output layer.
             Recommended — combats mode collapse without breaking gradient penalty.
+        cond_dim: Condition vector width; 0 disables conditioning.
     """
 
     def __init__(
@@ -109,11 +136,13 @@ class Critic(nn.Module):
         hidden_dims: List[int] | None = None,
         use_spectral_norm: bool = False,
         use_minibatch_std: bool = False,
+        cond_dim: int = 0,
     ):
         super().__init__()
         self.input_dim = input_dim
         self.use_spectral_norm = use_spectral_norm
         self.use_minibatch_std = use_minibatch_std
+        self.cond_dim = cond_dim
 
         if use_spectral_norm:
             warnings.warn(
@@ -128,7 +157,7 @@ class Critic(nn.Module):
 
         # Feature extraction trunk
         trunk_layers: list[nn.Module] = []
-        in_dim = input_dim
+        in_dim = input_dim + cond_dim
         for h in hidden_dims:
             trunk_layers.append(_maybe_spectral(nn.Linear(in_dim, h), use_spectral_norm))
             trunk_layers.append(nn.LeakyReLU(0.2, inplace=True))
@@ -141,7 +170,13 @@ class Critic(nn.Module):
 
         self.apply(_weights_init)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, cond: torch.Tensor | None = None) -> torch.Tensor:
+        if self.cond_dim:
+            if cond is None:
+                raise ValueError(
+                    f"Critic built with cond_dim={self.cond_dim} requires a condition tensor"
+                )
+            x = torch.cat([x, cond], dim=1)
         features = self.trunk(x)
 
         if self.use_minibatch_std:

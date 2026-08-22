@@ -173,6 +173,51 @@ def compute_wasserstein_distance(
     return float(np.mean(distances))
 
 
+def compute_energy_distance(
+    synthetic: np.ndarray,
+    real: np.ndarray,
+) -> float:
+    """
+    Energy distance between two multivariate samples.
+
+    Complements compute_wasserstein_distance rather than replacing it. That
+    function averages one-dimensional Wasserstein distances over the marginals,
+    which makes it blind to how the dimensions are coupled: a generator can
+    reproduce every marginal exactly and still emit combinations that never
+    occur in the real data. Where dimensions carry a conditional dependency —
+    an array length that governs which value slots are meaningful, say — the
+    marginal view cannot see the violation at all.
+
+    The energy distance is computed from pairwise distances between full
+    vectors, so it responds to the joint distribution:
+
+        E = 2 E||X - Y||  -  E||X - X'||  -  E||Y - Y'||
+
+    It is zero if and only if the two distributions are equal, and it needs no
+    kernel or bandwidth choice, which keeps it free of a tuning knob that could
+    be accused of favouring one generator over another.
+
+    Cost is O(n*m*d); fine for the sample sizes here (hundreds), not for large
+    ones.
+
+    Args:
+        synthetic: Synthetic samples — shape (N, D).
+        real: Real samples — shape (M, D).
+
+    Returns:
+        Energy distance. Lower is better; 0 means identical distributions.
+    """
+    x = np.atleast_2d(np.asarray(synthetic, dtype=np.float64))
+    y = np.atleast_2d(np.asarray(real, dtype=np.float64))
+    if x.shape[1] != y.shape[1]:
+        raise ValueError(f"dimension mismatch: {x.shape[1]} vs {y.shape[1]}")
+
+    def _mean_pairwise(a: np.ndarray, b: np.ndarray) -> float:
+        return float(np.sqrt(((a[:, None, :] - b[None, :, :]) ** 2).sum(-1)).mean())
+
+    return float(2 * _mean_pairwise(x, y) - _mean_pairwise(x, x) - _mean_pairwise(y, y))
+
+
 # ---------------------------------------------------------------------------
 # Composite quality score (early stopping metric)
 # ---------------------------------------------------------------------------

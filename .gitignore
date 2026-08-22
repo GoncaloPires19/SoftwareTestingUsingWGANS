@@ -112,3 +112,12 @@ desktop.ini
 .evosuite/
 evosuite-report/
 evosuite-tests/
+
+# ===== Tarefa 5: suites geradas =====
+# Reescritas a cada seed por emit_junit_from_oracle.py (~1,3 MB por execucao).
+# Sao produto, nao fonte: reproduzem-se com run_task5_experiment.py a partir do
+# corpus e da seed. Versiona-las poluiria o historico com ruido de geracao.
+src/test/java/dataloader/MathOperationsWganTests.java
+src/test/java/dataloader/MathOperationsRandomTests.java
+src/test/java/dataloader/MathOperationsCorpusTests.java
+src/test/java/dataloader/MathOperationsKdeTests.java
