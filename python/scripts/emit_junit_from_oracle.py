@@ -56,8 +56,8 @@ def _array_literal(row: dict) -> str:
     return f"new int[]{{{vals}}}"
 
 
-def _call_args(method: str, row: dict) -> str:
-    kind = ARG_KIND[method]
+def _call_args(method: str, row: dict, target: dict = None) -> str:
+    kind = (target or TARGETS["mathops"])["arg_kind"][method]
     if kind == "ARRAY":
         return _array_literal(row)
     if kind == "ARRAY_INT":
@@ -66,17 +66,22 @@ def _call_args(method: str, row: dict) -> str:
         return row["s0"]
     if kind == "INT2":
         return f"{row['s0']}, {row['s1']}"
+    if kind == "LONG2":
+        # O sufixo L e o que faz o compilador escolher a sobrecarga long
+        return f"{row['s0']}L, {row['s1']}L"
     return f"{row['s0']}, {row['s1']}, {row['s2']}"
 
 
-def _assertion(method: str, row: dict) -> str | None:
+def _assertion(method: str, row: dict, target: dict = None) -> str | None:
     """Build the assertion body, or None if the row can't be turned into a test."""
-    call = f"MathOperations.{method}({_call_args(method, row)})"
+    target = target or TARGETS["mathops"]
+    java = target.get("java_name", {}).get(method, method)
+    call = f"{target['class']}.{java}({_call_args(method, row, target)})"
 
     if row["outcome"] == "EXCEPTION":
         return f"assertThrows({row['value']}.class, () -> {call});"
 
-    kind = RETURN_KIND[method]
+    kind = target["return_kind"][method]
     val = row["value"]
 
     if kind == "int":
@@ -98,10 +103,48 @@ def _assertion(method: str, row: dict) -> str | None:
     return None
 
 
+# Segundo alvo experimental. Seis metodos (int, int) que devolvem int, todos
+# passiveis de lancar excepcao por overflow -- e por isso metade das assercoes
+# emitidas sao assertThrows, ao contrario do primeiro alvo onde sao a excepcao.
+ARITH_RETURN_KIND = {
+    "gcd": "int", "lcm": "int", "pow": "int",
+    "addAndCheck": "int", "subAndCheck": "int", "mulAndCheck": "int",
+    # Sufixo L: sobrecarga long da mesma operacao, invocada com os argumentos
+    # promovidos. Sem elas, dois tercos das mutacoes da classe ficariam sem
+    # cobertura para todos os bracos.
+    "gcdL": "long", "lcmL": "long", "powL": "long",
+    "addAndCheckL": "long", "subAndCheckL": "long", "mulAndCheckL": "long",
+}
+
+# Nome Java real de cada entrada do oraculo (o sufixo L nao existe na classe).
+ARITH_JAVA_NAME = {m: m[:-1] if m.endswith("L") else m for m in ARITH_RETURN_KIND}
+
+TARGETS = {
+    "mathops": {
+        "class": "MathOperations",
+        "return_kind": RETURN_KIND,
+        "arg_kind": ARG_KIND,
+        "input_cols": ["arr_len"] + [f"v{i}" for i in range(8)] + ["s0", "s1", "s2"],
+        "imports": "",
+    },
+    "arith": {
+        "class": "ArithmeticUtils",
+        "return_kind": ARITH_RETURN_KIND,
+        "arg_kind": {m: ("LONG2" if m.endswith("L") else "INT2")
+                     for m in ARITH_RETURN_KIND},
+        "java_name": ARITH_JAVA_NAME,
+        "input_cols": ["s0", "s1"],
+        # As excepcoes de overflow sao resultado esperado neste alvo, e cerca de
+        # um em cada dezasseis testes emitidos e um assertThrows sobre elas.
+        "imports": "import org.apache.commons.math3.exception.MathArithmeticException;\nimport org.apache.commons.math3.exception.NotPositiveException;\nimport org.apache.commons.math3.exception.NumberIsTooLargeException;\n",
+    },
+}
+
+
 HEADER = """package dataloader;
 
 import org.junit.jupiter.api.Test;
-
+{imports}
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -129,7 +172,10 @@ def main() -> None:
     parser.add_argument("--class-name", type=str, required=True)
     parser.add_argument("--out", type=str, required=True)
     parser.add_argument("--arm", type=str, default="")
+    parser.add_argument("--target", type=str, default="mathops",
+                        choices=sorted(TARGETS))
     args = parser.parse_args()
+    target = TARGETS[args.target]
 
     oracle_path = Path(args.oracle)
     if not oracle_path.exists():
@@ -146,15 +192,14 @@ def main() -> None:
 
     for idx, row in enumerate(rows):
         method = row["method"]
-        if method not in RETURN_KIND:
+        if method not in target["return_kind"]:
             stats["unknown_method"] += 1
             continue
-        assertion = _assertion(method, row)
+        assertion = _assertion(method, row, target)
         if assertion is None:
             stats["skipped"] += 1
             continue
-        seen_inputs.add(tuple(row[c] for c in
-                              ["arr_len"] + [f"v{i}" for i in range(8)] + ["s0", "s1", "s2"]))
+        seen_inputs.add(tuple(row[c] for c in target["input_cols"]))
         per_method[method] += 1
         stats["emitted"] += 1
         bodies.append(
@@ -172,7 +217,8 @@ def main() -> None:
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
-        f.write(HEADER.format(arm=arm, class_name=args.class_name,
+        f.write(HEADER.format(imports=target["imports"], arm=arm,
+                              class_name=args.class_name,
                               n_inputs=len(seen_inputs), n_tests=len(bodies)))
         f.write("\n".join(bodies))
         f.write("}\n")

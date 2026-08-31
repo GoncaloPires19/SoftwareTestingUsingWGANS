@@ -53,7 +53,28 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPT_DIR = Path(__file__).resolve().parent
 MVN = shutil.which("mvn") or "mvn"
 JACOCO = "org.jacoco:jacoco-maven-plugin:0.8.11"
-TARGET_CLASS = "dataloader.MathOperations"
+# Descritores por alvo experimental. Blocos explicitos e nao um sistema
+# generico: o caminho mathops sustenta a tese e ja esta validado.
+TARGETS = {
+    "mathops": {
+        "class": "dataloader.MathOperations",
+        "oracle": "tools.OracleRunner",
+        "suffix": "",                       # MathOperationsWganTests, etc.
+        "out_dir": "outputs/task5",
+        "has_fixed_arms": True,
+    },
+    "arith": {
+        "class": "dataloader.ArithmeticUtils",
+        "oracle": "tools.ArithmeticOracleRunner",
+        "suffix": "Arith",                  # ArithmeticWganTests, etc.
+        "out_dir": "outputs/task5b",
+        # A suite do Commons Math e JUnit 4 e serve so para recolher o corpus;
+        # nao entra como braco de referencia, e nao ha EvoSuite para este alvo.
+        "has_fixed_arms": False,
+    },
+}
+
+TARGET_CLASS = TARGETS["mathops"]["class"]
 
 SEP = "=" * 78
 
@@ -65,12 +86,15 @@ MANUAL_TESTS = (
 EVOSUITE_TESTS = "dataloader.MathOperationsEvoSuiteTests"
 
 # (chave do gerador, nome da classe de testes emitida, rotulo no CSV)
-GENERATED_ARMS = [
-    ("wgan", "MathOperationsWganTests", "WGAN"),
-    ("random", "MathOperationsRandomTests", "RANDOM"),
-    ("corpus", "MathOperationsCorpusTests", "CORPUS"),
-    ("kde", "MathOperationsKdeTests", "KDE"),
-]
+def _arms_for(target: str) -> list[tuple[str, str, str]]:
+    """(chave do gerador, classe de testes emitida, rotulo no CSV)."""
+    prefixo = "MathOperations" if target == "mathops" else "Arithmetic"
+    return [(k, f"{prefixo}{c}Tests", r) for k, c, r in
+            [("wgan", "Wgan", "WGAN"), ("random", "Random", "RANDOM"),
+             ("corpus", "Corpus", "CORPUS"), ("kde", "Kde", "KDE")]]
+
+
+GENERATED_ARMS = _arms_for("mathops")
 
 FIELDNAMES = [
     "arm", "seed", "n_tests",
@@ -110,13 +134,26 @@ def _py(script: str, *args: str) -> tuple[int, str]:
     return _run([sys.executable, "-u", str(SCRIPT_DIR / script), *args])
 
 
+def _classpath() -> str:
+    """Classpath para invocar o oraculo fora do Maven.
+
+    O segundo alvo depende do commons-math3 para as excepcoes que lanca, pelo
+    que target/classes e target/test-classes deixaram de chegar. O ficheiro e
+    gerado por dependency:build-classpath no arranque da execucao.
+    """
+    base = "target/classes;target/test-classes"
+    cp = REPO_ROOT / "target" / "cp.txt"
+    return f"{base};{cp.read_text(encoding='utf-8').strip()}" if cp.exists() else base
+
+
 def _parse_jacoco(path: Path) -> dict:
-    """Pull the MathOperations row out of jacoco.csv."""
+    """Pull the target class's row out of jacoco.csv."""
     if not path.exists():
         return {}
+    simples = TARGET_CLASS.rsplit(".", 1)[-1]
     with open(path, newline="", encoding="utf-8", errors="replace") as f:
         for row in csv.DictReader(f):
-            if row["CLASS"] != "MathOperations":
+            if row["CLASS"] != simples:
                 continue
             lc, lm = int(row["LINE_COVERED"]), int(row["LINE_MISSED"])
             bc, bm = int(row["BRANCH_COVERED"]), int(row["BRANCH_MISSED"])
@@ -295,12 +332,13 @@ class MutantPopulationChanged(RuntimeError):
 
 def _build_generated_arm(seed: int, n_generate: int, epochs: int,
                          fm_weight: float, conditional: bool = False,
-                         corpus_frac: float = 1.0) -> bool:
+                         corpus_frac: float = 1.0, target: str = "mathops") -> bool:
     """Regenerate inputs for this seed, re-run the oracle, re-emit every suite."""
+    t = TARGETS[target]
     extra = ["--conditional"] if conditional else []
     if corpus_frac < 1.0:
         extra += ["--corpus-frac", str(corpus_frac)]
-    code, out = _py("generate_test_inputs_wgan.py",
+    code, out = _py("generate_test_inputs_wgan.py", "--target", target,
                     "--seed", str(seed), "--n-generate", str(n_generate),
                     "--epochs", str(epochs), "--fm-weight", str(fm_weight), *extra)
     if code != 0:
@@ -309,15 +347,16 @@ def _build_generated_arm(seed: int, n_generate: int, epochs: int,
 
     for arm_key, cls, _ in GENERATED_ARMS:
         code, out = _run([
-            "java", "-cp", "target/classes;target/test-classes", "tools.OracleRunner",
-            f"outputs/task5/inputs_{arm_key}.csv", f"outputs/task5/oracle_{arm_key}.csv",
+            "java", "-cp", _classpath(), t["oracle"],
+            f"{t['out_dir']}/inputs_{arm_key}.csv",
+            f"{t['out_dir']}/oracle_{arm_key}.csv",
         ])
         if code != 0:
             print(f"    [ERRO] oracle {arm_key} falhou: {out[-500:]}")
             return False
 
-        code, out = _py("emit_junit_from_oracle.py",
-                        "--oracle", f"outputs/task5/oracle_{arm_key}.csv",
+        code, out = _py("emit_junit_from_oracle.py", "--target", target,
+                        "--oracle", f"{t['out_dir']}/oracle_{arm_key}.csv",
                         "--class-name", cls,
                         "--out", f"src/test/java/dataloader/{cls}.java",
                         "--arm", arm_key.upper())
@@ -360,10 +399,22 @@ def main() -> None:
                              "CORPUS arm is restricted to the same subset, so all arms see "
                              "equal data. Below 1.0 this is the low-data regime, the only "
                              "setting where CORPUS loses its ceiling advantage.")
+    parser.add_argument("--target", type=str, default="mathops",
+                        choices=sorted(TARGETS),
+                        help="Alvo experimental. arith usa o ArithmeticUtils do "
+                             "Commons Math, com corpus recolhido por instrumentacao.")
     parser.add_argument("--out", type=str, default="outputs/task5/results.csv")
     parser.add_argument("--skip-fixed", action="store_true",
                         help="Skip the MANUAL/EVOSUITE arms (they don't vary per seed)")
     args = parser.parse_args()
+
+    # Fixar o alvo antes de qualquer medicao.
+    global TARGET_CLASS, GENERATED_ARMS
+    alvo = TARGETS[args.target]
+    TARGET_CLASS = alvo["class"]
+    GENERATED_ARMS = _arms_for(args.target)
+    if not alvo["has_fixed_arms"]:
+        args.skip_fixed = True
 
     results: list[dict] = []
     per_mutator: list[dict] = []
@@ -423,6 +474,11 @@ def main() -> None:
     print("\n  mvn clean + test-compile (o PIT tem de mutilar bytecode actual) ...",
           flush=True)
     code, out = _run([MVN, "-q", "-B", "clean", "test-compile", "-DskipTests"])
+    if code == 0:
+        # Escrito para target/cp.txt e usado por _classpath() ao invocar o
+        # oraculo fora do Maven.
+        _run([MVN, "-q", "-B", "dependency:build-classpath",
+              "-Dmdep.outputFile=target/cp.txt", "-Dmdep.includeScope=test"])
     if code != 0:
         print("  [ERRO] mvn clean/test-compile falhou:")
         print(_first_errors(out))
@@ -446,7 +502,7 @@ def main() -> None:
     for seed in seeds:
         print(f"\n    seed {seed}: a gerar inputs + oraculo + suites ...", flush=True)
         if not _build_generated_arm(seed, args.n_generate, args.epochs, args.fm_weight,
-                                    args.conditional, args.corpus_frac):
+                                    args.conditional, args.corpus_frac, args.target):
             continue
         # As comparacoes sao emparelhadas por seed, por isso uma seed so entra se
         # TODOS os bracos foram medidos. Guardar uma seed incompleta enviesaria

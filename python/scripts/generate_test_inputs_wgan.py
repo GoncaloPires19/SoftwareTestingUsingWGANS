@@ -75,24 +75,86 @@ from utils import (
 
 SEP = "=" * 72
 Z_DIM = 16
-MAX_ARR = 8
-VEC_COLS = ["arr_len"] + [f"v{i}" for i in range(MAX_ARR)] + ["s0", "s1", "s2"]
+
+# Descritores por alvo experimental. Blocos explicitos, e nao um sistema
+# generico: o caminho "mathops" sustenta a tese inteira e ja esta validado, pelo
+# que a introducao do segundo alvo nao pode poder alterar-lhe o comportamento.
+#
+# O segundo alvo usa duas dimensoes e nao doze. Os seus seis metodos sao todos
+# (int, int), pelo que reutilizar o vector longo deixaria dez dimensoes mortas a
+# dominar a distancia de Wasserstein media por marginal -- exactamente o defeito
+# que a canonicalizacao corrigiu no primeiro alvo.
+TARGETS = {
+    "mathops": {
+        "max_arr": 8,
+        "cols": ["arr_len"] + [f"v{i}" for i in range(8)] + ["s0", "s1", "s2"],
+        "corpus": "outputs/task5/input_corpus.csv",
+        "out_dir": "outputs/task5",
+        "log_scale": False,
+    },
+    "arith": {
+        "max_arr": 0,                # sem argumentos de tipo array
+        "cols": ["s0", "s1"],
+        "corpus": "outputs/task5b/input_corpus.csv",
+        "out_dir": "outputs/task5b",
+        "log_scale": True,      # corpus de cauda pesada: ver MinMaxTanh
+    },
+}
+
+# Preenchidos em main() a partir do alvo escolhido. Os valores por omissao sao os
+# do primeiro alvo, para que qualquer uso das funcoes fora do main continue a
+# comportar-se como antes.
+MAX_ARR = TARGETS["mathops"]["max_arr"]
+VEC_COLS = TARGETS["mathops"]["cols"]
 N_DIMS = len(VEC_COLS)
 
 
-class MinMaxTanh:
-    """Scale each dimension to [-1, 1] (Generator's Tanh range) and back."""
+def _set_target(name: str) -> dict:
+    """Fixar a codificacao global para o alvo escolhido."""
+    global MAX_ARR, VEC_COLS, N_DIMS
+    t = TARGETS[name]
+    MAX_ARR, VEC_COLS = t["max_arr"], t["cols"]
+    N_DIMS = len(VEC_COLS)
+    return t
 
-    def __init__(self, X: np.ndarray):
-        self.lo = X.min(axis=0)
-        self.hi = X.max(axis=0)
+
+class MinMaxTanh:
+    """Scale each dimension to [-1, 1] (Generator's Tanh range) and back.
+
+    log_first aplica sign(x)*log1p(|x|) antes da normalizacao, e existe por
+    causa do segundo alvo. O seu corpus tem cauda pesada: os argumentos vao de
+    -2^31 a 2^31-1 mas a mediana dos valores absolutos e 1 e 50. Normalizado
+    linearmente, 95% do corpus fica a menos de 0,01 da mediana -- uma agulha que
+    um gerador com saida tanh nao consegue resolver, e a rede acaba a produzir
+    inteiros grandes genericos indistinguiveis de amostragem uniforme.
+
+    A transformacao logaritmica devolve resolucao a essa massa (a fraccao junto
+    a mediana cai para 38% e 17%) e a inversa e exacta sobre inteiros, pelo que
+    nao introduz erro de arredondamento proprio.
+
+    Nao se aplica ao primeiro alvo. Os seus valores vivem em [-1666, 2291], onde
+    a normalizacao linear nao distorce nada, e mudar-lhe a codificacao
+    invalidaria resultados ja reportados.
+    """
+
+    def __init__(self, X: np.ndarray, log_first: bool = False):
+        self.log_first = log_first
+        Z = self._fwd_log(X)
+        self.lo = Z.min(axis=0)
+        self.hi = Z.max(axis=0)
         self.rng = np.where(self.hi - self.lo == 0, 1.0, self.hi - self.lo)
 
+    def _fwd_log(self, X: np.ndarray) -> np.ndarray:
+        return np.sign(X) * np.log1p(np.abs(X)) if self.log_first else X
+
+    def _inv_log(self, Z: np.ndarray) -> np.ndarray:
+        return np.sign(Z) * np.expm1(np.abs(Z)) if self.log_first else Z
+
     def forward(self, X: np.ndarray) -> np.ndarray:
-        return np.clip(2 * (X - self.lo) / self.rng - 1, -1, 1)
+        return np.clip(2 * (self._fwd_log(X) - self.lo) / self.rng - 1, -1, 1)
 
     def inverse(self, Xs: np.ndarray) -> np.ndarray:
-        return (Xs + 1) / 2 * self.rng + self.lo
+        return self._inv_log((Xs + 1) / 2 * self.rng + self.lo)
 
 
 def _load_corpus(path: Path) -> tuple[np.ndarray, list[dict]]:
@@ -224,9 +286,12 @@ def _decode(vectors: np.ndarray) -> list[dict]:
     out = []
     for vec in vectors:
         row = {c: int(round(float(v))) for c, v in zip(VEC_COLS, vec)}
-        row["arr_len"] = max(-1, min(MAX_ARR, row["arr_len"]))
-        for i in range(max(0, row["arr_len"]), MAX_ARR):
-            row[f"v{i}"] = 0
+        # Alvos sem argumentos de tipo array nao tem ranhuras mortas a
+        # canonicalizar: todas as dimensoes sao lidas pelo programa.
+        if "arr_len" in row:
+            row["arr_len"] = max(-1, min(MAX_ARR, row["arr_len"]))
+            for i in range(max(0, row["arr_len"]), MAX_ARR):
+                row[f"v{i}"] = 0
         out.append(row)
     return out
 
@@ -269,6 +334,8 @@ def _structural_violations(rows: list[dict]) -> int:
     Should be 0 after _decode canonicalises. Kept as an assertion in metric
     form: if it ever climbs, the encoding and the oracle have drifted apart.
     """
+    if not rows or "arr_len" not in rows[0]:
+        return 0        # sem arrays nao ha restricao estrutural a violar
     bad = 0
     for r in rows:
         used = max(0, r["arr_len"])
@@ -291,6 +358,10 @@ def _live_values(rows: list[dict]) -> np.ndarray:
     does commit to a non-empty array, are the contents drawn from anything like
     the real distribution? It is the metric the conditioning is meant to move.
     """
+    if not rows or "arr_len" not in rows[0]:
+        # Sem arrays, todas as dimensoes sao vivas e a medida coincide com o W1
+        # agregado; devolver vazio evita reportar um numero redundante.
+        return np.asarray([], dtype=np.float64)
     vals: list[float] = []
     for r in rows:
         for i in range(max(0, r["arr_len"])):
@@ -319,8 +390,15 @@ def main() -> None:
         description="Train WGAN-GP on the test-input corpus and generate synthetic inputs",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--corpus", type=str, default="outputs/task5/input_corpus.csv")
-    parser.add_argument("--out-dir", type=str, default="outputs/task5")
+    parser.add_argument("--target", type=str, default="mathops",
+                        choices=sorted(TARGETS),
+                        help="Alvo experimental. Determina a codificacao: mathops usa "
+                             "12 dimensoes com argumentos de array, arith usa 2 "
+                             "dimensoes (int, int).")
+    parser.add_argument("--corpus", type=str, default=None,
+                        help="Por omissao, o corpus do alvo escolhido")
+    parser.add_argument("--out-dir", type=str, default=None,
+                        help="Por omissao, o directorio do alvo escolhido")
     parser.add_argument("--n-generate", type=int, default=200)
     parser.add_argument("--epochs", type=int, default=400)
     parser.add_argument("--fm-weight", type=float, default=0.3,
@@ -339,6 +417,12 @@ def main() -> None:
                              "to invent it alongside the value slots it governs.")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
+
+    alvo = _set_target(args.target)
+    if args.corpus is None:
+        args.corpus = alvo["corpus"]
+    if args.out_dir is None:
+        args.out_dir = alvo["out_dir"]
 
     corpus_path = Path(args.corpus)
     if not corpus_path.exists():
@@ -360,7 +444,7 @@ def main() -> None:
         X = X_full
 
     print(SEP)
-    print("  WGAN-GP — geracao de INPUTS de teste (Tarefa 5)")
+    print(f"  WGAN-GP — geracao de INPUTS de teste (Tarefa 5, alvo={args.target})")
     print(SEP)
     print(f"\n  Corpus real : {len(X)} inputs de {len(X_full)}, {N_DIMS} dimensoes"
           f"{'' if args.corpus_frac >= 1.0 else f'  (frac={args.corpus_frac})'}")
@@ -369,7 +453,7 @@ def main() -> None:
           f"{', condicionada em arr_len' if args.conditional else ''}")
     print(f"  A gerar     : {args.n_generate} inputs por braco (wgan, random, corpus, kde)\n")
 
-    scaler = MinMaxTanh(X)
+    scaler = MinMaxTanh(X, log_first=alvo.get("log_scale", False))
     X_scaled = scaler.forward(X)
     n = args.n_generate
 

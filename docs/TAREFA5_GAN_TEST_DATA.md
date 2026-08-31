@@ -236,6 +236,78 @@ situa a WGAN:
   do seu teto** e são inalcançáveis com esta codificação; só 4 são margem de
   melhoria da rede.
 
+### 3.6 Regime de poucos dados: onde gerar bate repetir
+
+As secções anteriores deixam a WGAN numa posição desconfortável: melhor que
+amostragem uniforme, indistinguível do KDE, pior que reamostrar o corpus. Se
+reamostrar produz melhores dados de teste, reamostrar é o que se deve fazer.
+
+Só que há uma assimetria estrutural que a comparação com o corpus completo não
+consegue exibir. **A reamostragem só devolve entradas que já viu**; a rede
+aprende uma densidade e interpola. Com 121 entradas a diferença não se manifesta,
+porque 121 chegam. A questão é o que acontece quando não chegam — que é o cenário
+que justifica gerar dados de teste, porque se já existisse uma suite extensa de
+onde extrair corpus o problema estaria em boa medida resolvido.
+
+O `--corpus-frac` restringe **todos** os arms ao mesmo subconjunto, incluindo o
+CORPUS. Restringir só a rede dar-lhe-ia uma desvantagem de informação.
+
+| Fração | Entradas | `WGAN` | `CORPUS` | `KDE` | `RANDOM` |
+|---|---|---|---|---|---|
+| 0,15 | 18 | **79,8 %** | 76,1 % | 78,1 % | 75,2 % |
+| 1,00 | 121 | 78,7 % | **82,2 %** | 76,5 % | 71,6 % |
+
+**A ordenação inverte-se.** Com o corpus completo a reamostragem vence por 3,6 pp;
+com 18 entradas perde por 3,7 pp.
+
+#### Comparações emparelhadas a 15 % (12 seeds, Holm-Bonferroni)
+
+| Base | Delta | Seeds a favor | p corrigido |
+|---|---|---|---|
+| `RANDOM` | +4,61 pp | 11/12 | **0,0103** |
+| `CORPUS` | +3,73 pp | 9/12 | **0,0312** |
+| `KDE` | +1,68 pp | 7/12 | **0,0312** |
+
+É o **único ponto de toda a Tarefa 5 em que a WGAN supera as três bases em
+simultâneo**, com significância que sobrevive à correção para comparações
+múltiplas. Com o corpus completo era indistinguível do KDE e perdia para o
+CORPUS; com 15 % separa-se de ambas.
+
+#### O mecanismo, medido e não inferido
+
+| Arm | Distintas (121) | W1 (121) | Distintas (18) | W1 (18) |
+|---|---|---|---|---|
+| `WGAN` | 198 | 0,057 | **176** | **0,088** |
+| `CORPUS` | 72 | 0,017 | **17** | 0,018 |
+| `KDE` | 200 | 0,090 | 189 | **0,167** |
+| `RANDOM` | 200 | 0,468 | 200 | 0,498 |
+
+Cada arm falha de uma maneira diferente:
+
+- **`CORPUS`** conserva fidelidade perfeita e **colapsa em diversidade**: de 72
+  para 17 entradas distintas em 200 sorteios. Não pode ser de outra forma — não
+  emite nada que não tenha visto.
+- **`KDE`** conserva diversidade e a sua **fidelidade degrada-se quase para o
+  dobro** (0,090 → 0,167): ajustar kernels gaussianos a 18 pontos em 12 dimensões
+  é mal condicionado.
+- **`RANDOM`** conserva diversidade total e nunca teve fidelidade.
+- **`WGAN`** é o único que conserva as duas: perde 11 % de diversidade e o W1
+  sobe 0,031.
+
+A leitura é mais estreita do que "GANs geram bons dados de teste", e por isso mais
+defensável: **a utilidade exige diversidade e fidelidade em simultâneo**. Com
+dados abundantes vários métodos satisfazem ambas e a arquitetura torna-se
+indiferente; com poucos, os métodos simples sacrificam uma delas, e é aí que a
+capacidade adversarial passa a ser mensurável.
+
+> **Ressalva metodológica.** A análise de teto (secção 3.3) **não se aplica** com
+> `corpus_frac < 1`. O teto é o máximo por classe de mutator ao longo dos seeds,
+> e cada seed sorteia um subconjunto diferente, pelo que a união acaba por cobrir
+> grande parte do corpus. O sintoma que denuncia o problema é o teto do RANDOM
+> *subir* quando o corpus encolhe, o que é impossível como facto sobre
+> capacidade. A limitação do CORPUS lê-se na diversidade por seed, que é uma
+> medida por execução e não sofre desse confundidor.
+
 ## 4. Duas armadilhas que custaram correções
 
 ### 4.1 Poder estatístico

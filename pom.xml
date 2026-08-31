@@ -19,6 +19,24 @@
             <version>5.10.0</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Segundo alvo experimental de E3. O ArithmeticUtils esta vendorizado
+             em src/main/java/dataloader/ para o PIT o poder mutar como codigo do
+             projecto; esta dependencia fornece as excepcoes que ele lanca. -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-math3</artifactId>
+            <version>3.6.1</version>
+        </dependency>
+
+        <!-- A suite do Commons Math e JUnit 4 e serve apenas para a recolha do
+             corpus por instrumentacao. As suites geradas continuam em JUnit 5. -->
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+            <version>5.10.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

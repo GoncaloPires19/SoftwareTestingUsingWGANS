@@ -121,3 +121,8 @@ src/test/java/dataloader/MathOperationsWganTests.java
 src/test/java/dataloader/MathOperationsRandomTests.java
 src/test/java/dataloader/MathOperationsCorpusTests.java
 src/test/java/dataloader/MathOperationsKdeTests.java
+# Mesmo racional para o segundo alvo experimental.
+src/test/java/dataloader/ArithmeticWganTests.java
+src/test/java/dataloader/ArithmeticRandomTests.java
+src/test/java/dataloader/ArithmeticCorpusTests.java
+src/test/java/dataloader/ArithmeticKdeTests.java
