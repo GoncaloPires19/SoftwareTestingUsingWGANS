@@ -308,6 +308,82 @@ capacidade adversarial passa a ser mensurável.
 > capacidade. A limitação do CORPUS lê-se na diversidade por seed, que é uma
 > medida por execução e não sofre desse confundidor.
 
+## 3.7 Réplica num segundo alvo: `ArithmeticUtils`
+
+Alvo: `org.apache.commons.math3.util.ArithmeticUtils` (tag `MATH_3_6_1`), copiado
+literalmente com **uma linha alterada** (o package), verificável por diff contra
+`corpus_sources/`. Perfil deliberadamente diferente do primeiro: dominado por
+verificação de overflow e exceções, e não por operações sobre arrays.
+
+**Escada (11 seeds, 210 mutações, população estável em todas as medições):**
+
+| braço | mutation score | vs WGAN | seeds | p (Holm, 3 comparações) |
+|---|---|---|---|---|
+| CORPUS | 63,59 ± 1,51 % | −6,28 pp | 0/11 | 0,0029 |
+| KDE | 62,25 ± 1,33 % | −4,94 pp | 0/11 | 0,0029 |
+| **WGAN** | **57,32 ± 0,83 %** | — | — | — |
+| RANDOM | 47,62 ± **0,00** % | **+9,70 pp** | **11/11** | **0,0029** |
+
+O resultado central **replica com margem maior** (+9,70 contra +7,02 pp), unânime
+nos dois alvos. O `RANDOM` deu exactamente 47,62 % nas 11 seeds, sem variação:
+amostrar uniformemente em ±2³¹ transborda quase sempre e exercita sempre os mesmos
+caminhos. Neste alvo o piso é uma constante, não uma distribuição.
+
+**A seed 49 foi excluída** por falha de infraestrutura na medição (timeout, duas
+tentativas), não pelo valor — que nunca chegou a existir. A n=11 o p mínimo é
+0,00098.
+
+### Três limitações do método que o segundo alvo expôs
+
+1. **A extracção por literais não funciona em suites reais.** Sobre a suite do
+   `ArithmeticUtils` captou 8 chamadas distintas em 154. Substituída por
+   instrumentação em execução — um delegador fino fora do pacote que o PIT muta —
+   passou a captar 274.
+
+2. **Sobrecargas `long` partilham o nome com as `int`** e o PIT conta-as na mesma
+   classe: 68 % das mutações ficavam sem cobertura e o CORPUS media 29,1 %.
+   Invocando ambas as versões, desce para 25 % e o CORPUS sobe para 66,7 %.
+
+3. **Min-max destrói distribuições de cauda pesada.** O corpus vai de −2³¹ a
+   2³¹−1 mas as medianas dos absolutos são 1 e 50: 95 % fica a menos de 0,01 da
+   mediana depois de normalizar. Sintoma contra-intuitivo: **treinar mais
+   piorava** (47,6 % a 60 épocas → 40,9 % a 2000). Corrigido com
+   `sign(x)·log1p(|x|)` antes da normalização (`log_scale` por alvo):
+
+   | braço | linear | logarítmica | delta |
+   |---|---|---|---|
+   | **WGAN** | 40,9 % | **57,6 %** | **+16,7 pp** |
+   | CORPUS | 63,3 % | 63,3 % | 0,00 (controlo) |
+   | RANDOM | 47,6 % | 47,6 % | 0,00 (controlo) |
+
+   É a maior variação de toda a Tarefa 5 — seis vezes o que as épocas renderam.
+
+### O que NÃO se transfere: o teto
+
+| mutator | WGAN | CORPUS | KDE | RANDOM | total |
+|---|---|---|---|---|---|
+| NegateConditionals | 56 | 59 | 59 | 47 | 75 |
+| Math | 36 | 39 | 39 | 33 | 53 |
+| **ConditionalsBoundary** | **7** | **12** | 11 | 0 | **32** |
+| PrimitiveReturns | 16 | 18 | 18 | 11 | 28 |
+| InvertNegs | 8 | 10 | 10 | 8 | 11 |
+| **Teto** | **124** | **139** | **138** | **100** | **210** |
+
+No primeiro alvo WGAN e CORPUS tinham o **mesmo** teto nas nove classes, e
+concluiu-se que a derrota era de consistência. **Aqui é falso**: 15 mutações de
+diferença, com fracções do teto equivalentes (97,1 / 96,1 / 94,7 %). Neste alvo a
+derrota é de **capacidade**.
+
+O défice concentra-se em `ConditionalsBoundary` — fronteiras de overflow,
+exercitadas exactamente em 2³¹−1. O corpus tem esses literais; um gerador
+contínuo acerta na ordem de grandeza sem aterrar no ponto. Nenhum hiperparâmetro
+corrige isto: aponta para hibridização com análise de valores de fronteira.
+
+O KDE também inverte (era +2,19 pp, agora −4,94), o que é coerente com a curva da
+secção 3.6: 260 entradas de treino aqui contra 121 lá, e acima de ~70 a vantagem
+adversarial desaparece. É evidência independente, noutra classe, de uma hipótese
+formulada a partir do primeiro alvo.
+
 ## 4. Duas armadilhas que custaram correções
 
 ### 4.1 Poder estatístico
@@ -363,16 +439,18 @@ misturar denominadores).
 
 ## 5. Ameaças à validade
 
-1. **Uma única classe-alvo.** É a limitação principal. Procurou-se uma segunda
-   classe de código real (Commons Math `ArithmeticUtils` e `FastMath`, Commons
-   Lang `IEEE754rUtils`, `Conversion`, `NumberUtils`), mas nenhuma satisfaz
-   simultaneamente os quatro requisitos: pequena (viável para PIT multi-seed),
-   auto-contida, com assinatura compatível com a codificação, e com suite de
-   testes suficiente para extrair corpus. O `IEEE754rUtils` chegou perto, mas o
-   seu teste tem apenas 22 call sites (≈10 inputs extraíveis) e a sua semântica é
-   dominada por `NaN`/`Infinity`, que um gerador contínuo não representa bem.
-   Os resultados valem para uma classe de utilitários numéricos; a generalização
-   para outros perfis de código não está demonstrada.
+1. **Dois alvos, ambos utilitários numéricos.** Uma versão anterior deste
+   documento dava o alvo único como limitação principal e registava que nenhuma
+   segunda classe servia (Commons Math `ArithmeticUtils` e `FastMath`, Commons
+   Lang `IEEE754rUtils`, `Conversion`, `NumberUtils`). **O diagnóstico estava
+   errado**: o requisito que falhava era o do corpus, e a causa era o extractor
+   por literais, não as classes. Com instrumentação em execução (secção 3.7) o
+   mesmo `ArithmeticUtils` passou a servir. A limitação que subsiste é mais
+   estreita: ambos os alvos são utilitários numéricos com métodos estáticos e sem
+   estado. Código com estado, hierarquias de objetos ou cadeias de carateres
+   continua por demonstrar, e a codificação não o representa. O `IEEE754rUtils`
+   continua fora de alcance, por a sua semântica ser dominada por
+   `NaN`/`Infinity`.
 
 2. **Oráculo de regressão.** Os valores esperados vêm da implementação original,
    pelo que a suite não deteta defeitos já presentes nessa implementação — mede
@@ -449,6 +527,10 @@ python python/scripts/analyze_task5_conditional.py \
 python python/scripts/run_task5_experiment.py --seeds 12 --epochs 2000 \
     --corpus-frac 0.15 --skip-fixed --out outputs/task5/results_frac15.csv
 
+# Segundo alvo: escada completa, retomável (uma seed por ficheiro)
+python python/scripts/task5b_resume.py            # corre o que falta
+python python/scripts/task5b_resume.py --status   # só relata
+
 # Complementar: cobertura/deteção vs orçamento de testes
 python python/scripts/run_task5_budget_sweep.py --seeds 5 --budgets 3,5,10,20,50,200
 ```
@@ -467,6 +549,10 @@ Pré-requisito: `mvn -q -B test-compile` funcional (JDK 11+, Maven).
 | `outputs/task5/results_114_e2000_by_mutator.csv` | Discriminação por classe de mutator (base do teto) |
 | `outputs/task5/budget_sweep.csv` | Varrimento de orçamento |
 | `src/test/java/dataloader/MathOperations{Gan,Random,Corpus,Kde}Tests.java` | Suites geradas (auto-geradas, não editar) |
+| `outputs/task5b/input_corpus.csv` | 274 chamadas do segundo alvo, por instrumentação |
+| `outputs/task5b/seeds/seed_NN.csv` | Uma seed por ficheiro (permite retomar) |
+| `outputs/task5b/results_arith_final.csv` | Escada do segundo alvo, 11 seeds, 210 mutações |
+| `outputs/task5b/gate_linear.csv` / `gate_log.csv` | Efeito isolado da codificação (+16,7 pp) |
 
 > **Nota histórica.** Qualquer ficheiro sem `114` no nome pode conter medições
 > feitas contra bytecode do IDE (secção 4.2) e **não deve ser usado**. Os

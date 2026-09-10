@@ -45,6 +45,7 @@ import json
 import re
 import shutil
 import subprocess
+import tempfile
 import sys
 import time
 from pathlib import Path
@@ -121,13 +122,31 @@ def _run(cmd: list[str], cwd: Path = REPO_ROOT, timeout: int = 3600) -> tuple[in
     um unico timeout matava a execucao inteira: uma fraccao do regime de poucos
     dados perdeu onze das doze seeds por causa de uma medicao. Agora perde-se a
     seed afectada e o resto continua.
+
+    A saida vai para ficheiro em vez de um pipe, e o timeout mata a arvore toda
+    com taskkill /T. As duas coisas resolvem o mesmo impasse, observado a matar
+    32 horas da seed 49. O subprocess.run com capture_output abre pipes que os
+    netos herdam; ao expirar o timeout ele mata so o filho directo, os JVM do
+    PIT ficam orfaos a segurar o pipe, e o communicate() interno bloqueia para
+    sempre a espera que feche. Pior, os orfaos continuavam a lancar JVM novos,
+    pelo que o impasse se alimentava a si proprio e nada no log o denunciava.
+    Sem pipe nao ha nada para esvaziar, e matar a arvore nao deixa orfaos.
     """
-    try:
-        proc = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True,
-                              timeout=timeout, errors="replace")
-    except subprocess.TimeoutExpired:
-        return -1, f"TIMEOUT apos {timeout}s: {' '.join(cmd[:4])}"
-    return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+    with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as f:
+        proc = subprocess.Popen(cmd, cwd=str(cwd), stdout=f,
+                                stderr=subprocess.STDOUT, text=True)
+        try:
+            code = proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                           capture_output=True, timeout=120)
+            try:
+                proc.wait(timeout=60)
+            except subprocess.TimeoutExpired:
+                pass
+            return -1, f"TIMEOUT apos {timeout}s: {' '.join(cmd[:4])}"
+        f.seek(0)
+        return code, f.read()
 
 
 def _py(script: str, *args: str) -> tuple[int, str]:
