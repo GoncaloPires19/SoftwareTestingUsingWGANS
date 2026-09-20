@@ -1,0 +1,5 @@
+arm,seed,n_tests,lines_covered,lines_total,line_coverage,branches_covered,branches_total,branch_coverage,methods_covered,methods_total,method_coverage,killed,survived,no_coverage,timed_out,mutation_score,test_strength,w1,n_unique,nn_dist_median,n_exact_copies
+WGAN,45,2400,106,220,0.4818,69,150,0.46,14,27,0.5185,89,41,80,15,0.4238,0.6846,0.2128,70,0.0498,71
+RANDOM,45,2400,106,220,0.4818,69,150,0.46,14,27,0.5185,91,39,80,16,0.4333,0.7,0.2769,125,0.5259,6
+CORPUS,45,2400,99,220,0.45,60,150,0.4,14,27,0.5185,77,45,88,14,0.3667,0.6311,0.0468,18,0.0,200
+KDE,45,2400,106,220,0.4818,69,150,0.46,14,27,0.5185,91,39,80,16,0.4333,0.7,0.135,106,0.0479,50
