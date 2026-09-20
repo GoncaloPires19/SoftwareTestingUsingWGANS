@@ -57,9 +57,35 @@ FINAL = OUT_DIR / "results_arith_final.csv"
 LOG = OUT_DIR / "resume.log"
 LOG_DIR = OUT_DIR / "logs"
 
+
+def _config_frac(frac: float) -> None:
+    """Redirigir todos os caminhos para o subdirectorio da fraccao.
+
+    Mantem as campanhas separadas: cada fraccao tem as suas seeds, o seu lock e
+    o seu log, e o varrimento de uma nunca ve os ficheiros da outra.
+    """
+    global FRAC, OUT_DIR, SEED_DIR, LOCK, FINAL, LOG, LOG_DIR
+    FRAC = frac
+    if frac >= 1.0:
+        return
+    OUT_DIR = OUT_DIR / f"frac{round(frac * 1000):03d}"
+    SEED_DIR = OUT_DIR / "seeds"
+    LOCK = OUT_DIR / "resume.lock"
+    FINAL = OUT_DIR / "results_arith_final.csv"
+    LOG = OUT_DIR / "resume.log"
+    LOG_DIR = OUT_DIR / "logs"
+
 SEEDS = list(range(42, 54))          # 12 seeds, como no primeiro alvo
 EPOCHS = 2000
 N_ARMS = 4                            # WGAN, RANDOM, CORPUS, KDE
+FRAC = 1.0                            # fixado em main(); < 1 = regime de poucos dados
+
+# O regime de poucos dados emparelha por NUMERO ABSOLUTO de entradas, nao por
+# fraccao. A hipotese do primeiro alvo e sobre contagem -- inversao perto das 30,
+# saturacao perto das 70 -- e o corpus do segundo alvo tem 260 entradas contra
+# 121. Usar as mesmas fraccoes daria 39 entradas a 0,15, ja acima do cruzamento,
+# e a experiencia falharia o fenomeno por construcao.
+FRACS_POR_ENTRADAS = {18: 0.069, 36: 0.138, 73: 0.281}
 
 
 def _log(msg: str) -> None:
@@ -146,7 +172,8 @@ def _correr_seed(seed: int) -> bool:
         proc = subprocess.run(
             [sys.executable, "-u", str(SCRIPT_DIR / "run_task5_experiment.py"),
              "--target", "arith", "--base-seed", str(seed), "--seeds", "1",
-             "--epochs", str(EPOCHS), "--out", str(destino)],
+             "--epochs", str(EPOCHS), "--out", str(destino)]
+            + ([] if FRAC >= 1.0 else ["--corpus-frac", str(FRAC)]),
             cwd=str(REPO_ROOT), stdout=f, stderr=subprocess.STDOUT)
     dur = round(time.time() - inicio)
     if seed in _seeds_completas():
@@ -197,7 +224,14 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Executor retomavel do segundo alvo")
     ap.add_argument("--status", action="store_true",
                     help="Relatar o que falta e sair, sem correr nada")
+    ap.add_argument("--entradas", type=int, choices=sorted(FRACS_POR_ENTRADAS),
+                    help="Regime de poucos dados: numero ALVO de entradas de "
+                         "treino (18, 36 ou 73). Omitir = corpus completo.")
     args = ap.parse_args()
+    if args.entradas:
+        _config_frac(FRACS_POR_ENTRADAS[args.entradas])
+        print(f"regime de poucos dados: ~{args.entradas} entradas "
+              f"(frac={FRAC}) -> {OUT_DIR.name}/")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     completas = _seeds_completas()

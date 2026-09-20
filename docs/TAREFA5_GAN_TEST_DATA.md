@@ -379,10 +379,56 @@ exercitadas exactamente em 2³¹−1. O corpus tem esses literais; um gerador
 contínuo acerta na ordem de grandeza sem aterrar no ponto. Nenhum hiperparâmetro
 corrige isto: aponta para hibridização com análise de valores de fronteira.
 
-O KDE também inverte (era +2,19 pp, agora −4,94), o que é coerente com a curva da
-secção 3.6: 260 entradas de treino aqui contra 121 lá, e acima de ~70 a vantagem
-adversarial desaparece. É evidência independente, noutra classe, de uma hipótese
-formulada a partir do primeiro alvo.
+O KDE também inverte (era +2,19 pp, agora −4,94). A primeira explicação seria a
+curva da secção 3.6 (260 entradas aqui contra 121), mas a réplica do regime de
+poucos dados abaixo mostra que é insuficiente: com 18 entradas o KDE continua a
+bater a rede. A causa é a **dimensionalidade da codificação** (2 aqui, 12 lá),
+não a quantidade de dados.
+
+### O regime de poucos dados no segundo alvo (18 entradas, 12 seeds)
+
+Fixou-se o **número** de entradas em 18 (6,9 % das 260) e não a fracção de 15 %,
+porque a hipótese é sobre a contagem: 15 % daria 39, já acima do cruzamento.
+Todos os braços restritos ao mesmo subconjunto. População 210 em todas as
+medições. Ficheiro `outputs/task5b/frac069/results_arith_final.csv`.
+
+| braço | mutation score |
+|---|---|
+| KDE | 56,15 ± 4,94 % |
+| WGAN | 53,29 ± 4,07 % |
+| CORPUS | 48,73 ± 5,89 % |
+| RANDOM | 41,15 ± 1,51 % |
+
+| WGAN vs | Δ | seeds | p Holm (3) |
+|---|---|---|---|
+| RANDOM | **+12,14 pp** | 11/12 | 0,0020 |
+| CORPUS | **+4,56 pp** | 10/12 | 0,0024 |
+| KDE | **−2,86 pp** | 0/12 | 0,0015 |
+
+**Replica:** a inversão contra a reamostragem. Com o corpus completo o CORPUS
+batia a rede em 6,28 pp em 11/11; com 18 entradas a rede bate-o em 10/12. Gerar
+vale mais do que repetir com pouco material — nos dois alvos.
+
+**Não replica:** «supera as três bases». O KDE ganha nas 12 seeds, e o mecanismo
+está medido:
+
+| braço | distintas (260) | W1 (260) | distintas (18) | W1 (18) |
+|---|---|---|---|---|
+| WGAN | 199 | 0,079 | 156 | 0,161 |
+| CORPUS | 56 | 0,011 | **24** | 0,023 |
+| KDE | 193 | 0,072 | **176** | **0,141** |
+| RANDOM | 200 | 0,448 | 194 | 1,042 |
+
+A 18 entradas o KDE conserva diversidade e fidelidade tão bem ou melhor do que a
+rede. No primeiro alvo a derrota do KDE era atribuída a «18 pontos em 12
+dimensões ser mal condicionado»; em 2 dimensões está bem condicionado e não
+perde. **A vantagem adversarial sobre o KDE é um efeito da dimensionalidade da
+codificação**; a vantagem sobre a reamostragem é robusta ao alvo.
+
+Notas: o RANDOM deixa de ser constante (39,05–43,33 %) porque amostra no
+intervalo do subconjunto sorteado; timeouts entre 11 e 22 em todas as seeds. A
+seed 43 apanhou uma suspensão do PC a meio do braço KDE (895 min de relógio) sem
+sinal de dano nos contadores.
 
 ## 4. Duas armadilhas que custaram correções
 

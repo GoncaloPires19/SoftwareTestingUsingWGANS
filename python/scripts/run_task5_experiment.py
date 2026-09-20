@@ -76,6 +76,10 @@ TARGETS = {
 }
 
 TARGET_CLASS = TARGETS["mathops"]["class"]
+# Onde o gerador deixou o generation_metrics.json do alvo corrente. Tem de
+# acompanhar o alvo: lido a partir de um caminho fixo, as colunas de fidelidade
+# do CSV ficavam a copiar a ultima geracao do outro alvo.
+METRICS_DIR = TARGETS["mathops"]["out_dir"]
 
 SEP = "=" * 78
 
@@ -256,7 +260,7 @@ def _parse_pit_by_mutator(path: Path, arm: str, seed) -> list[dict]:
 
 def _generation_metrics(arm_key: str) -> dict:
     """Fidelity/novelty of the generator that produced this arm's inputs."""
-    path = REPO_ROOT / "outputs" / "task5" / "generation_metrics.json"
+    path = REPO_ROOT / METRICS_DIR / "generation_metrics.json"
     if not path.exists():
         return {}
     try:
@@ -428,9 +432,10 @@ def main() -> None:
     args = parser.parse_args()
 
     # Fixar o alvo antes de qualquer medicao.
-    global TARGET_CLASS, GENERATED_ARMS
+    global TARGET_CLASS, GENERATED_ARMS, METRICS_DIR
     alvo = TARGETS[args.target]
     TARGET_CLASS = alvo["class"]
+    METRICS_DIR = alvo["out_dir"]
     GENERATED_ARMS = _arms_for(args.target)
     if not alvo["has_fixed_arms"]:
         args.skip_fixed = True

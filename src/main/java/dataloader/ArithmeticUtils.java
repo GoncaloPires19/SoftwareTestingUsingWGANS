@@ -3,11 +3,12 @@
  *   src/main/java/org/apache/commons/math3/util/ArithmeticUtils.java
  *   https://github.com/apache/commons-math/blob/MATH_3_6_1/
  *
- * Copiado literalmente. A UNICA alteracao e a declaracao de pacote, de
+ * Copiado literalmente. As unicas alteracoes sao a declaracao de pacote, de
  * org.apache.commons.math3.util para dataloader, para que o PIT o trate como
- * codigo do projecto (a configuracao muta dataloader.*). O corpo dos metodos
- * nao foi tocado, e a copia original esta em corpus_sources/ para permitir
- * verificacao por diff.
+ * codigo do projecto (a configuracao muta dataloader.*), e dois imports
+ * (CombinatoricsUtils, FastMath) que o original dispensava por estar no mesmo
+ * pacote. O corpo dos metodos nao foi tocado, e a copia original esta em
+ * corpus_sources/ para permitir verificacao por diff.
  *
  * Segundo alvo experimental de E3. Perfil deliberadamente diferente do
  * MathOperations: dominado por verificacao de overflow e excepcoes, e nao por
