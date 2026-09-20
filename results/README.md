@@ -20,7 +20,8 @@ diferentes no mesmo ficheiro.
 | 6.13 teto por mutador, 6.14 consistência | `results_114_e2000_by_mutator.csv` | `python python/scripts/analyze_task5_ceiling.py --by-mutator results/task5/results_114_e2000_by_mutator.csv` |
 | 6.15 duração do treino (300 vs 2000 épocas) | `results_114_e300_full.csv` + `results_114_e2000.csv` | `python python/scripts/analyze_task5_conditional.py --baseline results/task5/results_114_e300_full.csv --conditional results/task5/results_114_e2000.csv --label "300 vs 2000 epocas"` |
 | 6.16 condicionamento em `arr_len` | `results_114_cond.csv` | `python python/scripts/analyze_task5_conditional.py --baseline results/task5/results_114_e2000.csv --conditional results/task5/results_114_cond.csv --label "condicionamento"` |
-| 6.17–6.20 e Fig. 6.1–6.2 regime de poucos dados | `results_114_frac15.csv`, `results_114_frac30_full.csv`, `results_114_frac60.csv` | `python python/scripts/analyze_task5_lowdata.py --full results/task5/results_114_e2000.csv --fracs "0.15:results/task5/results_114_frac15.csv,0.30:results/task5/results_114_frac30_full.csv,0.60:results/task5/results_114_frac60.csv"` |
+| 6.17–6.22 e Fig. 6.1–6.2 regime de poucos dados (6.19 e 6.21: cobertura de linha e de ramo) | `results_114_frac15.csv`, `results_114_frac30_full.csv`, `results_114_frac60.csv` | `python python/scripts/analyze_task5_lowdata.py --full results/task5/results_114_e2000.csv --fracs "0.15:results/task5/results_114_frac15.csv,0.30:results/task5/results_114_frac30_full.csv,0.60:results/task5/results_114_frac60.csv"` |
+| 6.19, 6.21 cobertura por fração | `results_114_frac15.csv` etc. | `python python/scripts/analyze_task5_results.py --results results/task5/results_114_frac15.csv` (uma chamada por fração; as colunas *line/branch coverage* do resumo e das comparações) |
 | varrimento de orçamento (não reportado) | `budget_sweep.csv` | — |
 | *corpus* de treino (121 entradas) | `input_corpus.csv` | regenerável com `extract_test_input_corpus.py` |
 
@@ -38,10 +39,10 @@ mesma convenção.
 
 | tabela / figura da tese | ficheiro | comando |
 |---|---|---|
-| 6.21 efeito da codificação | `gate_linear.csv`, `gate_log.csv` | leitura directa (uma *seed*, dois escalonamentos) |
-| 6.22 escada, 6.23 Holm | `results_arith_final.csv` (11 *seeds*) | `python python/scripts/analyze_task5_results.py --results results/task5b/results_arith_final.csv` |
-| 6.24 teto por mutador, Fig. 6.4 | `seeds/seed_*_by_mutator.csv` | `python python/scripts/analyze_task5_ceiling.py` sobre a concatenação dos ficheiros por *seed* |
-| 6.25–6.27 regime de poucos dados (18 entradas) | `frac069/results_arith_final.csv` (12 *seeds*) | `python python/scripts/analyze_task5_results.py --results results/task5b/frac069/results_arith_final.csv` |
+| 6.23 efeito da codificação | `gate_linear.csv`, `gate_log.csv` | leitura directa (uma *seed*, dois escalonamentos) |
+| 6.24 escada (cobertura e *mutation score*), 6.25–6.26 Holm | `results_arith_final.csv` (11 *seeds*) | `python python/scripts/analyze_task5_results.py --results results/task5b/results_arith_final.csv` |
+| 6.27 teto por mutador, Fig. 6.4 | `seeds/seed_*_by_mutator.csv` | `python python/scripts/analyze_task5_ceiling.py` sobre a concatenação dos ficheiros por *seed* |
+| 6.28–6.31 regime de poucos dados (18 entradas; 6.30: cobertura) | `frac069/results_arith_final.csv` (12 *seeds*) | `python python/scripts/analyze_task5_results.py --results results/task5b/frac069/results_arith_final.csv` |
 | *corpus* de treino (260 entradas) | `input_corpus.csv`, `corpus_raw.csv` | **não regenerável bit a bit**: a *suite* original usa `RandomDataGenerator`; o *corpus* é versionado como artefacto |
 
 As pastas `seeds/` guardam a medição de cada *seed* tal como foi escrita

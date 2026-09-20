@@ -260,7 +260,10 @@ def main() -> None:
     print(SEP)
     print(f"\n  Seeds: {len(by_arm.get('WGAN', []))} | "
           f"Arms: {', '.join(a for a in ARM_ORDER if a in by_arm)}")
-    print("  Classe-alvo: dataloader.MathOperations")
+    pops = sorted({int(float(r["killed"]) + float(r["survived"]) + float(r["no_coverage"]))
+                   for rs in by_arm.values() for r in rs})
+    print(f"  Mutacoes por medicao: {', '.join(map(str, pops))}"
+          + ("  <-- POPULACOES DIFERENTES" if len(pops) > 1 else ""))
 
     print(f"\n{SEP}")
     print("  RESUMO POR ARM (media +/- desvio sobre seeds)")

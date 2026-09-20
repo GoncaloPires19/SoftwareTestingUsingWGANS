@@ -6,10 +6,12 @@ Teste de Software Utilizando Redes Adversariais Generativas (GANs)*
 
 A pergunta do trabalho é se uma rede adversarial (WGAN-GP) consegue aprender
 a distribuição das entradas usadas pelas *suites* de teste que um projeto já
-tem, e produzir entradas novas que detetem defeitos. A resposta é medida por
-*mutation score* (PIT), e não por cobertura, e contra uma escada de bases que
-inclui o que um profissional teria sem treinar nada: reamostrar o *corpus*
-existente ou ajustar-lhe um estimador de densidade clássico.
+tem, e produzir entradas novas que cubram mais código e detetem mais
+defeitos. A resposta é medida por cobertura de linha e de ramo (JaCoCo) e por
+*mutation score* (PIT), sendo esta a métrica principal porque a cobertura
+satura antes, e contra uma escada de bases que inclui o que um profissional
+teria sem treinar nada: reamostrar o *corpus* existente ou ajustar-lhe um
+estimador de densidade clássico.
 
 ## As duas linhas do trabalho
 
@@ -50,26 +52,33 @@ dois pontos distintos do processo de teste:
 
 ### Linha 2 — geração de entradas de teste (E3)
 
-*Mutation score* médio, 12 *seeds*, corpus completo (114 mutações no alvo 1,
-210 no alvo 2):
+Médias sobre 12 *seeds* (11 no segundo alvo), corpus completo, 114 mutações
+no alvo 1 e 210 no alvo 2. Cobertura de linha e de ramo por JaCoCo, *mutation
+score* por PIT:
 
-| braço | `MathOperations` | `ArithmeticUtils` |
+| braço | `MathOperations` linha / ramo / *mut.* | `ArithmeticUtils` linha / ramo / *mut.* |
 |---|---|---|
-| `MANUAL` | 92,1 % | — |
-| `CORPUS` | **82,2 %** | **63,6 %** |
-| `WGAN` | 78,7 % | 57,3 % |
-| `KDE` | 76,5 % | 62,3 % |
-| `RANDOM` | 71,6 % | 47,6 % |
-| `EVOSUITE` | 61,4 % | — |
+| `MANUAL` | 99,1 / 97,9 / 92,1 % | — |
+| `CORPUS` | 90,8 / 90,3 / **82,2 %** | 65,3 / 68,5 / **63,6 %** |
+| `WGAN` | 89,6 / 87,9 / 78,7 % | 56,9 / 60,1 / 57,3 % |
+| `KDE` | 89,0 / 86,6 / 76,5 % | 63,4 / 66,7 / 62,3 % |
+| `RANDOM` | 86,9 / 82,7 / 71,6 % | 50,0 / 50,0 / 47,6 % |
+| `EVOSUITE` | 73,4 / 67,0 / 61,4 % | — |
 
-- Sobre amostragem uniforme a rede ganha **+7,02 pp** (12/12 *seeds*, Holm
-  0,0020) e **+9,70 pp** (11/11, Holm 0,0029). Contra a reamostragem do
-  *corpus* completo, perde.
+- Sobre amostragem uniforme a rede ganha em *mutation score* **+7,02 pp**
+  (12/12 *seeds*, Holm 0,0020) e **+9,70 pp** (11/11, Holm 0,0029), e em
+  cobertura de ramo **+5,23 pp** e **+10,12 pp** (também unânimes e
+  significativas). Contra a reamostragem do *corpus* completo, perde nas três
+  métricas.
 - **Regime de poucos dados**: com 18 entradas de treino a relação inverte-se
-  nos dois alvos — a rede bate a reamostragem por +3,73 pp e +4,56 pp. Sobre
-  o KDE só ganha em 12 dimensões (o estimador fica mal condicionado); em 2
-  dimensões o KDE ganha à rede. A contribuição adversarial é condicional ao
-  regime de dados e à dimensionalidade da codificação.
+  nos dois alvos — a rede bate a reamostragem por +3,73 pp e +4,56 pp de
+  *mutation score*. No alvo 1 a inversão dá-se sem diferença de cobertura
+  (todos os braços do corpus entre 88 e 91 % de linha em todas as frações): a
+  vantagem é de valores, não de alcance. No alvo 2 estende-se à cobertura de
+  ramo (+4,17 pp, Holm 0,013). Sobre o KDE só ganha em 12 dimensões (o
+  estimador fica mal condicionado); em 2 dimensões o KDE ganha à rede. A
+  contribuição adversarial é condicional ao regime de dados e à
+  dimensionalidade da codificação.
 - **O limite é a codificação, não o gerador**: mudar só a normalização
   (escalonamento logarítmico com sinal) vale **+16,7 pp** no segundo alvo;
   prolongar o treino por um fator de sete vale 2,85 pp; condicionar o gerador
