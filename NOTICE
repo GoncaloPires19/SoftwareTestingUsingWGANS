@@ -1,0 +1,27 @@
+Software Testing Using WGAN-GP
+Copyright (c) 2026 Gonçalo Pires
+
+This product includes software developed at The Apache Software Foundation
+(https://www.apache.org/).
+
+The following files are copied from Apache Commons Math, release tag
+MATH_3_6_1 (https://github.com/apache/commons-math/tree/MATH_3_6_1), and are
+licensed under the Apache License, Version 2.0
+(https://www.apache.org/licenses/LICENSE-2.0):
+
+  src/main/java/dataloader/ArithmeticUtils.java
+      Copy of org.apache.commons.math3.util.ArithmeticUtils. The only changes
+      are the package declaration (org.apache.commons.math3.util ->
+      dataloader) and two import statements that the original resolved by
+      being in the same package. The method bodies are untouched. This copy
+      is the second experimental target of the dissertation; the change of
+      package makes it visible to the PIT mutation configuration
+      (dataloader.*).
+
+  corpus_sources/ArithmeticUtils_MATH_3_6_1.java
+  corpus_sources/ArithmeticUtilsTest_MATH_3_6_1.java
+      Unmodified copies of the original class and its test suite, kept so
+      that the modification above can be verified by diff.
+
+The remainder of this repository is licensed under the MIT License (see
+LICENSE).

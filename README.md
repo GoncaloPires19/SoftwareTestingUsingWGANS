@@ -1,148 +1,209 @@
 # Software Testing Using WGAN-GP
 
-## Visao geral
+Código, dados e resultados da dissertação *Geração Inteligente de Dados de
+Teste de Software Utilizando Redes Adversariais Generativas (GANs)*
+(Mestrado em Engenharia Informática, Universidade de Évora, 2026).
 
-Pipeline hibrido Java + Python para avaliar e melhorar qualidade de testes de
-software combinando tres contribuicoes:
+A pergunta do trabalho é se uma rede adversarial (WGAN-GP) consegue aprender
+a distribuição das entradas usadas pelas *suites* de teste que um projeto já
+tem, e produzir entradas novas que detetem defeitos. A resposta é medida por
+*mutation score* (PIT), e não por cobertura, e contra uma escada de bases que
+inclui o que um profissional teria sem treinar nada: reamostrar o *corpus*
+existente ou ajustar-lhe um estimador de densidade clássico.
 
-1. **WGAN-GP** para geracao de perfis estruturais sinteticos e treino de um
-   preditor de testabilidade.
-2. **Selecao guiada de classes-alvo** para o PIT (mutation testing) baseada
-   no modelo treinado em perfis WGAN-aware.
-3. **Curadoria do conjunto de mutators** para eliminar mutadores conhecidamente
-   fracos que introduzem ruido no score.
+## As duas linhas do trabalho
 
-## Resultados finais
+O mesmo núcleo adversarial (`python/model.py`, `python/utils.py`) é usado em
+dois pontos distintos do processo de teste:
 
-Sobre os 111 projetos do benchmark **SF110**:
+1. **Perfis de cobertura → preditor de testabilidade (E1, E2, E4).** A rede
+   sintetiza perfis estruturais de *suites* do *benchmark* SF110 (111
+   projetos) para aumentar o treino de um preditor de testabilidade, validado
+   *leave-projects-out*; o preditor guia a seleção de classes para o PIT e a
+   curadoria do conjunto de mutadores. Validação externa no Defects4J.
+2. **Entradas de teste → *suites* JUnit medidas por mutação (E3).** A rede
+   gera valores de entrada concretos para uma classe sob teste; um oráculo de
+   regressão fixa o resultado esperado como literal; a *suite* emitida é
+   medida com JaCoCo e PIT contra `RANDOM`, `CORPUS` (reamostragem), `KDE` e
+   as *suites* manual e EvoSuite. Dois alvos: `MathOperations` (12 dimensões)
+   e `ArithmeticUtils` do Commons Math (2 dimensões).
 
-| Metrica | Baseline | v8 curated | Merged final |
+## Resultados
+
+### Linha 1 — SF110 (E2) e Defects4J (E4)
+
+| Métrica | *Baseline* | `v8_curated` | *Merged* |
 |---|---|---|---|
 | Projetos com sucesso | 67 | 69 | **80** |
-| Weighted mutation score | 16.73% | **49.74%** | 45.20% |
-| Weighted test strength | 63.25% | **76.63%** | 73.39% |
-| Projetos com score >= 70% | 4 | 13 | 14 |
+| *Weighted mutation score* | 16,73 % | **49,74 %** | 45,20 % |
+| *Weighted test strength* | 63,25 % | **76,63 %** | 73,39 % |
+| Projetos com *score* ≥ 70 % | 4 | 13 | 14 |
 
-O **objetivo de >70% em weighted test strength** foi atingido pela primeira
-vez na campanha `v8_curated` (76.63%).
+- Preditor de testabilidade: AUC *cross-project* **0,752** no SF110 (1 638
+  classes, 70 projetos), contra 0,745 de uma regressão logística sobre as
+  mesmas 15 *features*.
+- Aumentação sintética do preditor: **não robusta** — +0,026 de AUC numa
+  *seed*, +0,002 ± 0,013 em cinco. O que resolveu a escassez foi recolher mais
+  dados reais (532 → 1 638 classes).
+- Defects4J, sem retreino: AUC **0,360**. O sinal que o preditor aprende só
+  existe em *benchmarks* estruturalmente heterogéneos.
 
-## Estrutura do repositorio
+### Linha 2 — geração de entradas de teste (E3)
+
+*Mutation score* médio, 12 *seeds*, corpus completo (114 mutações no alvo 1,
+210 no alvo 2):
+
+| braço | `MathOperations` | `ArithmeticUtils` |
+|---|---|---|
+| `MANUAL` | 92,1 % | — |
+| `CORPUS` | **82,2 %** | **63,6 %** |
+| `WGAN` | 78,7 % | 57,3 % |
+| `KDE` | 76,5 % | 62,3 % |
+| `RANDOM` | 71,6 % | 47,6 % |
+| `EVOSUITE` | 61,4 % | — |
+
+- Sobre amostragem uniforme a rede ganha **+7,02 pp** (12/12 *seeds*, Holm
+  0,0020) e **+9,70 pp** (11/11, Holm 0,0029). Contra a reamostragem do
+  *corpus* completo, perde.
+- **Regime de poucos dados**: com 18 entradas de treino a relação inverte-se
+  nos dois alvos — a rede bate a reamostragem por +3,73 pp e +4,56 pp. Sobre
+  o KDE só ganha em 12 dimensões (o estimador fica mal condicionado); em 2
+  dimensões o KDE ganha à rede. A contribuição adversarial é condicional ao
+  regime de dados e à dimensionalidade da codificação.
+- **O limite é a codificação, não o gerador**: mudar só a normalização
+  (escalonamento logarítmico com sinal) vale **+16,7 pp** no segundo alvo;
+  prolongar o treino por um fator de sete vale 2,85 pp; condicionar o gerador
+  vale 0.
+
+Todas as medições que sustentam estes números estão em [`results/`](results/),
+com o comando que reproduz cada tabela.
+
+## Estrutura do repositório
 
 ```
 .
-├── README.md
-├── pom.xml                  Maven build (Java)
-├── requirements.txt         Dependencias Python
-├── src/                     MathOperations (caso controlado)
-│   ├── main/java/dataloader/
-│   └── test/java/dataloader/
+├── README.md, LICENSE, NOTICE
+├── pom.xml                      Maven: JUnit 5, JaCoCo, PIT 1.15.2, EvoSuite
+├── requirements.txt             Dependências Python (PyTorch, scikit-learn, SciPy)
+├── src/main/java/dataloader/    Classes sob teste: MathOperations, ArithmeticUtils (Apache 2.0, ver NOTICE)
+├── src/test/java/
+│   ├── dataloader/              Suites manual e EvoSuite; as suites geradas são reescritas por seed (gitignored)
+│   ├── tools/                   OracleRunner / ArithmeticOracleRunner (fora do pacote mutado, de propósito)
+│   └── corpus/                  Instrumentação em execução para extrair o corpus do segundo alvo
+├── corpus_sources/              Cópias intactas da classe e suite originais do Commons Math (para diff)
 ├── python/
-│   ├── config.py            Config centralizada do treino
-│   ├── model.py             Generator e Critic WGAN-GP
-│   ├── utils.py             Funcoes helper (gradient penalty, feature matching)
-│   ├── sf110_lib.py         Modulo partilhado do pipeline SF110
-│   ├── junit_datasets.py    Dataset PyTorch para JUnit metrics
-│   ├── data/                Dataset canonico e SF110 extraido
-│   ├── scripts/             17 scripts do pipeline canonico
-│   │   ├── archive/         Experimentos anteriores (24 scripts arquivados)
-│   │   └── tools/           Utilitarios
-│   └── tests/               Testes pytest (64 testes)
-├── docs/                    Documentacao academica
-├── outputs/
-│   ├── sf110_v8_curated_results.pdf   Relatorio v8
-│   ├── sf110_wgan_results.pdf         Relatorio consolidado
-│   └── mutation_experiments/          Datasets, modelo e results
-└── target/                  Maven build output (gitignored)
+│   ├── config.py, model.py, utils.py, junit_datasets.py, sf110_lib.py
+│   ├── data/                    Dataset de perfis de cobertura (733 registos brutos, 398 após limpeza estrita)
+│   ├── scripts/                 Pipeline (ver abaixo); archive/ guarda scripts substituídos
+│   └── tests/                   pytest
+├── results/                     Medições finais de E3, indexadas por tabela da tese
+├── docs/                        Metodologia e documentação das experiências
+└── outputs/                     Execuções (gitignored, excepto os dois relatórios PDF)
 ```
 
-## Documentacao
+Scripts principais de `python/scripts/`:
 
-- **[docs/SESSION_SUMMARY.md](docs/SESSION_SUMMARY.md)** - cronologia e estado final
-- **[docs/SESSION_LOG.md](docs/SESSION_LOG.md)** - log detalhado
-- **[docs/WGAN_TESTABILITY_METHODOLOGY.md](docs/WGAN_TESTABILITY_METHODOLOGY.md)** - metodologia academica
-- **[docs/DATA_SCHEMA.md](docs/DATA_SCHEMA.md)** - contrato dos datasets WGAN
-- **[docs/sf110_v8_results.tex](docs/sf110_v8_results.tex)** - relatorio LaTeX final
-- **[docs/mutation_testing_results.tex](docs/mutation_testing_results.tex)** - relatorio LaTeX caso `MathOperations`
-- **[docs/CLEANUP_PLAN.md](docs/CLEANUP_PLAN.md)** - registo da limpeza consolidada
+| linha | script | papel |
+|---|---|---|
+| 1 | `train_optimized.py`, `wgan_multi_seed.py` | treino da WGAN-GP sobre perfis; estudo de robustez (E1) |
+| 1 | `extract_sf110_full.py`, `run_sf110_mutation_testing.py` | extração do SF110 e campanhas PIT |
+| 1 | `build_bridge_dataset.py`, `train_testability_predictor.py`, `predictor_baselines.py` | preditor de testabilidade e escada de modelos |
+| 1 | `wgan_augmented_predictor.py`, `fidelity_check.py`, `bootstrap_score_ci.py` | aumentação sintética, fidelidade *hold-out*, IC por *bootstrap* |
+| 1 | `guided_class_selector.py`, `merge_runs.py`, `generate_results_pdf.py` | seleção guiada, fusão de campanhas, relatório |
+| 1 | `run_defects4j_mutation_testing.py`, `run_defects4j_coverage.py`, `score_defects4j_with_sf110_model.py` | validação *cross-benchmark* (E4) |
+| 2 | `extract_test_input_corpus.py` | *corpus* de entradas (literais; ou `--from-runtime-csv` para instrumentação) |
+| 2 | `generate_test_inputs_wgan.py` | treino e geração; constrói os quatro braços (`WGAN`, `RANDOM`, `CORPUS`, `KDE`) |
+| 2 | `emit_junit_from_oracle.py` | oráculo → *suite* JUnit 5 com asserções literais |
+| 2 | `run_task5_experiment.py`, `task5b_resume.py` | uma medição completa por *seed* (JaCoCo + PIT); executor retomável |
+| 2 | `analyze_task5_results.py`, `analyze_task5_ceiling.py`, `analyze_task5_conditional.py`, `analyze_task5_lowdata.py` | comparações emparelhadas com Holm; teto; ablações; poucos dados |
 
-## Pipeline reproduzivel
+## Reprodução
+
+### Ambiente
 
 ```bash
-# 1. Ambiente
 pip install -r requirements.txt
+mvn clean test          # compila, corre as suites e o PIT sobre o caso controlado
+```
 
-# 2. Testes Java + mutation testing no caso controlado
-mvn clean test
+Java 11 (`--release 11`), Maven 3, Python 3.11. Todas as experiências correram
+em CPU.
 
-# 3. Extracao SF110 completa (long-path safe no Windows)
+### Linha 2 — uma medição de E3
+
+```bash
+# alvo 1, 12 seeds, 2000 épocas (~20 min por seed)
+python python/scripts/run_task5_experiment.py --target mathops --base-seed 42 --seeds 12 --epochs 2000 \
+    --out outputs/task5/results.csv
+
+# alvo 2, executor retomável (sobrevive a reinícios; funde no fim)
+python python/scripts/task5b_resume.py
+
+# regime de poucos dados (todos os braços restritos ao mesmo subconjunto)
+python python/scripts/run_task5_experiment.py --target mathops --corpus-frac 0.15 --base-seed 42 --seeds 12 --epochs 2000
+```
+
+Cada execução começa por `mvn clean`: o PIT tem de mutar o *bytecode* que a
+*build* produz, e um servidor de linguagem Java aberto no editor pode
+compilar para o mesmo diretório com outro JDK e alterar a população de
+mutantes (ver `docs/TAREFA5_GAN_TEST_DATA.md`, §4.2). Os executores abortam
+se a população mudar a meio.
+
+As análises correm sobre `results/` sem repetir nenhuma medição — ver
+[`results/README.md`](results/README.md).
+
+### Linha 1 — campanha SF110
+
+```bash
 python python/scripts/extract_sf110_full.py
-
-# 4. Baseline (sem guidance)
 python python/scripts/run_sf110_mutation_testing.py \
     --sf110-root python/data/raw/evosuite/sf110/extracted/SF110-20130704-src \
     --test-mode both --output-root outputs/mutation_experiments/sf110_full111 \
     --pit-version 1.7.3 --retry-oom --retry-compile
-
-# 5. Analise por classe + dual metric
-python python/scripts/analyze_class_level.py \
-    --results-dir outputs/mutation_experiments/sf110_full111 \
+python python/scripts/analyze_class_level.py --results-dir outputs/mutation_experiments/sf110_full111 \
     --export outputs/mutation_experiments/class_level_dataset_111.csv
-
-# 6. Metricas estruturais das classes
 python python/scripts/extract_class_metrics.py \
     --sf110-root python/data/raw/evosuite/sf110/extracted/SF110-20130704-src \
     --output outputs/mutation_experiments/class_structural_metrics_111.csv
-
-# 7. Dataset de bridge (estrutura -> testabilidade)
 python python/scripts/build_bridge_dataset.py
-
-# 8. Preditor cross-project (RandomForest, GroupKFold, AUC ~ 0.75)
 python python/scripts/train_testability_predictor.py --model rf \
     --model-out outputs/mutation_experiments/testability_model_111.json
-
-# 9. Whitelist por projeto (selector v3: blacklist + incerteza)
-python python/scripts/guided_class_selector.py \
-    --output-dir outputs/mutation_experiments/guided_targets_v3 \
-    --drop-threshold 0.2 --preserve-coverage 0.3 \
-    --uncertain-threshold 0.5 --uncertain-coverage 0.1
-
-# 10. Run v8_curated (selector + mutator set curated)
+python python/scripts/guided_class_selector.py --output-dir outputs/mutation_experiments/guided_targets_v3 \
+    --drop-threshold 0.2 --preserve-coverage 0.3 --uncertain-threshold 0.5 --uncertain-coverage 0.1
 python python/scripts/run_sf110_mutation_testing.py \
     --sf110-root python/data/raw/evosuite/sf110/extracted/SF110-20130704-src \
     --test-mode both --output-root outputs/mutation_experiments/sf110_v8_curated \
     --guided-targets-dir outputs/mutation_experiments/guided_targets_v3 \
     --mutators "CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,MATH,INCREMENTS,INVERT_NEGS,RETURN_VALS,EMPTY_RETURNS,FALSE_RETURNS,TRUE_RETURNS,NULL_RETURNS,PRIMITIVE_RETURNS" \
     --pit-version 1.7.3 --retry-oom --retry-compile
-
-# 11. Merge best-per-project (baseline + v3 + v5_evo + v8)
-python python/scripts/merge_runs.py \
-    --runs outputs/mutation_experiments/sf110_full111 \
-           outputs/mutation_experiments/sf110_wgan_guided_v3 \
-           outputs/mutation_experiments/sf110_wgan_guided_v5_evo \
-           outputs/mutation_experiments/sf110_v8_curated \
-    --output outputs/mutation_experiments/sf110_final_v8
-
-# 12. Gerar PDF
-python python/scripts/generate_results_pdf.py \
-    --baseline outputs/mutation_experiments/sf110_full111 \
-    --guided outputs/mutation_experiments/sf110_final_v8 \
-    --output outputs/sf110_wgan_results.pdf
 ```
+
+A campanha completa sobre os 111 projetos demora horas e exige o SF110
+extraído; o procedimento passo a passo está em
+`docs/WGAN_TESTABILITY_METHODOLOGY.md`. O Defects4J exige um ambiente Unix
+(correu em WSL2) — ver `docs/DEFECTS4J_CROSS_BENCHMARK.md`.
 
 ## Testes
 
 ```bash
-# Java (mvn)
-mvn test              # 340 testes
-
-# Python (pytest)
-python -m pytest python/tests/ -q  # 64 testes
+mvn test                            # Java
+python -m pytest python/tests/ -q   # Python
 ```
 
-## Nota metodologica
+## Documentação
 
-As variaveis historicamente nomeadas como `methods`, `branches` e `statements`
-sao mantidas por compatibilidade de pipeline, mas devem ser interpretadas
-segundo o contrato de dados em [docs/DATA_SCHEMA.md](docs/DATA_SCHEMA.md)
-como tuplos numericos derivados dos testes, nao como metricas formais de
-cobertura de codigo de producao.
+- [`docs/TAREFA5_GAN_TEST_DATA.md`](docs/TAREFA5_GAN_TEST_DATA.md) — desenho e resultados de E3, incluindo as duas armadilhas de integridade
+- [`docs/WGAN_TESTABILITY_METHODOLOGY.md`](docs/WGAN_TESTABILITY_METHODOLOGY.md) — metodologia da linha 1
+- [`docs/DEFECTS4J_CROSS_BENCHMARK.md`](docs/DEFECTS4J_CROSS_BENCHMARK.md) — validação externa e infraestrutura
+- [`docs/DATA_SCHEMA.md`](docs/DATA_SCHEMA.md) — contrato dos datasets de perfis
+
+Nota sobre os perfis de cobertura: as colunas `methods`, `branches` e
+`statements` do dataset de perfis são tuplos numéricos derivados das *suites*,
+interpretados segundo `docs/DATA_SCHEMA.md`, e não métricas formais de
+cobertura do código de produção.
+
+## Licença
+
+MIT (ver `LICENSE`), excepto a classe `ArithmeticUtils` e as cópias em
+`corpus_sources/`, que são do Apache Commons Math sob Apache License 2.0
+(ver `NOTICE`).
