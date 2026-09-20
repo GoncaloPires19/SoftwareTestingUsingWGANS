@@ -144,7 +144,7 @@ campanha v8_curated (76,63%).** O `1_tullibee` alcançou 91,63%/95,75%,
 `49_diebierse` alcançou 100% de test strength, `101_netweaver` (2 821 mutações,
 maior projeto) manteve 95,68% de strength.
 
-Ver Tabela 3 e 4 em `docs/sf110_v8_results.tex` para os top-20 projetos.
+Ver as tabelas por projeto em `outputs/sf110_v8_curated_results.pdf` para os top-20 projetos.
 
 ## 6. Merge consolidado
 
