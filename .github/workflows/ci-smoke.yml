@@ -26,8 +26,8 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Validate repository structure
-        run: python validate_refactoring.py
+      - name: Python tests
+        run: python -m pytest python/tests/ -q
 
       - name: Validate dataset prerequisites
         run: python python/scripts/validate_before_training.py --data-path python/data/junit_data_cleaned_strict.csv
