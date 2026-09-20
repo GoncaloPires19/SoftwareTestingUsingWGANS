@@ -126,3 +126,19 @@ src/test/java/dataloader/ArithmeticWganTests.java
 src/test/java/dataloader/ArithmeticRandomTests.java
 src/test/java/dataloader/ArithmeticCorpusTests.java
 src/test/java/dataloader/ArithmeticKdeTests.java
+
+# ===== Dissertacao (nao pertence ao repositorio publico) =====
+# A tese, a classe LaTeX, a capa, a bibliografia, os excertos do apendice, a
+# variante para o Overleaf, o material de preparacao da defesa e as copias de
+# seguranca vivem ao lado dos scripts por conveniencia, mas nao sao codigo.
+python/scripts/tese*
+python/scripts/teseue.txt
+python/scripts/capa_dissertacao.pdf
+python/scripts/bibliografia.*
+python/scripts/listings/
+python/scripts/overleaf/
+python/scripts/defesa/
+python/scripts/tese_backups/
+
+# Configuracao local do assistente de escrita
+.claude/
