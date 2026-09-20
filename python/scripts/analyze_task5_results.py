@@ -108,21 +108,35 @@ def _head_to_head(by_arm: dict, treat: str, base: str, why: str) -> None:
     raw: list[float] = []
     linhas: list[tuple] = []
     for key, label in METRICS:
-        g = np.array([_f(a[s], key) for s in seeds]) * 100
-        r = np.array([_f(b[s], key) for s in seeds]) * 100
+        # O teste corre sobre os valores tal como estao no CSV (fraccoes com
+        # 4 casas). Multiplicar por 100 antes do teste altera o ultimo bit de
+        # diferencas iguais, desfaz empates de ordens e muda o p exacto; os
+        # outros analisadores (conditional, lowdata) usam fraccoes, e a tese
+        # foi calculada assim. A escala percentual e so para apresentacao.
+        g0 = np.array([_f(a[s], key) for s in seeds])
+        r0 = np.array([_f(b[s], key) for s in seeds])
+        g, r = g0 * 100, r0 * 100
         delta = g - r
-        if np.all(delta == 0):
+        if np.all(g0 == r0):
             p = float("nan")
         else:
             try:
-                _, p = wilcoxon(g, r)
+                _, p = wilcoxon(g0, r0)
             except ValueError:
                 p = float("nan")
-        raw.append(p if p == p else 1.0)
+        raw.append(p)
         linhas.append((label, g.mean(), r.mean(), delta.mean(), delta.std(),
                        int((delta > 0).sum()), len(delta), p))
 
-    adj = _holm(raw)
+    # Uma metrica identica em todos os seeds (p = n/a) nao e um teste: nao
+    # entra na familia do Holm. Contar um p = 1 a mais inflacionava os p
+    # ajustados (0,0024 em vez de 0,0020 na escada do alvo 1).
+    idx = [i for i, p in enumerate(raw) if p == p]
+    adj_validos = _holm([raw[i] for i in idx])
+    adj = [float("nan")] * len(raw)
+    for i, pa in zip(idx, adj_validos):
+        adj[i] = pa
+    m = len(idx)
     print(f"\n  {'Metrica':<17}{treat:>8}{base:>9}{'Delta':>9}{'a favor':>9}"
           f"{'p':>9}{'p(Holm)':>10}")
     print("  " + "-" * 71)
@@ -132,7 +146,7 @@ def _head_to_head(by_arm: dict, treat: str, base: str, why: str) -> None:
         patxt = "  n/a" if p != p else f"{pa:.4f}"
         print(f"  {label:<17}{gm:>7.1f}%{rm:>8.1f}%{dm:>+8.1f}pp"
               f"{fav:>6}/{n:<3}{ptxt:>9}{patxt:>10}{marca}")
-    print("\n  * significativo a 5% depois de corrigir para 5 testes (Holm)")
+    print(f"\n  * significativo a 5% depois de corrigir para {m} testes (Holm)")
 
 
 def _fidelity_vs_utility(rows: list[dict], by_arm: dict) -> None:
