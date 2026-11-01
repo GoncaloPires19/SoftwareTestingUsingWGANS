@@ -133,7 +133,7 @@ src/test/java/dataloader/ArithmeticKdeTests.java
 # seguranca vivem ao lado dos scripts por conveniencia, mas nao sao codigo.
 python/scripts/tese*
 python/scripts/teseue.txt
-python/scripts/capa_dissertacao.pdf
+python/scripts/capa_*
 python/scripts/bibliografia.*
 python/scripts/listings/
 python/scripts/overleaf/

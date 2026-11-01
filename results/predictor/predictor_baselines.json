@@ -1,0 +1,22 @@
+{
+  "majority": {
+    "overall_auc": 0.45978705880948684,
+    "mean_fold_auc": 0.5,
+    "std_fold_auc": 0.0
+  },
+  "stump": {
+    "overall_auc": 0.5818470320724765,
+    "mean_fold_auc": 0.6363107650917045,
+    "std_fold_auc": 0.08351993374142894
+  },
+  "logreg": {
+    "overall_auc": 0.7452523902171188,
+    "mean_fold_auc": 0.7526943868391697,
+    "std_fold_auc": 0.10967556627188914
+  },
+  "rf": {
+    "overall_auc": 0.7521798422038937,
+    "mean_fold_auc": 0.7615239811757514,
+    "std_fold_auc": 0.10066146867097873
+  }
+}

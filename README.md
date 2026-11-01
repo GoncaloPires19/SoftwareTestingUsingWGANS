@@ -1,218 +1,197 @@
 # Software Testing Using WGAN-GP
 
-Código, dados e resultados da dissertação *Geração Inteligente de Dados de
-Teste de Software Utilizando Redes Adversariais Generativas (GANs)*
-(Mestrado em Engenharia Informática, Universidade de Évora, 2026).
+[![CI](https://github.com/GoncaloPires19/SoftwareTestingUsingWGANS/actions/workflows/ci-smoke.yml/badge.svg)](https://github.com/GoncaloPires19/SoftwareTestingUsingWGANS/actions/workflows/ci-smoke.yml)
+![Python 3.11](https://img.shields.io/badge/python-3.11-blue)
+![Java 11+](https://img.shields.io/badge/java-11%2B-orange)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-A pergunta do trabalho é se uma rede adversarial (WGAN-GP) consegue aprender
-a distribuição das entradas usadas pelas *suites* de teste que um projeto já
-tem, e produzir entradas novas que cubram mais código e detetem mais
-defeitos. A resposta é medida por cobertura de linha e de ramo (JaCoCo) e por
-*mutation score* (PIT), sendo esta a métrica principal porque a cobertura
-satura antes, e contra uma escada de bases que inclui o que um profissional
-teria sem treinar nada: reamostrar o *corpus* existente ou ajustar-lhe um
-estimador de densidade clássico.
+*Versão portuguesa: [README.pt.md](README.pt.md).*
 
-## As duas linhas do trabalho
+Code, data and measurements of the MSc dissertation *Geração Inteligente de
+Dados de Teste de Software Utilizando Redes Adversariais Generativas (GANs)*
+(Intelligent Generation of Software Test Data Using Generative Adversarial
+Networks), Universidade de Évora, 2026.
 
-O mesmo núcleo adversarial (`python/model.py`, `python/utils.py`) é usado em
-dois pontos distintos do processo de teste:
+Can a generative adversarial network learn the distribution of the inputs
+that a project's existing unit tests use, and generate new inputs that detect
+more faults? We answer with mutation testing (PIT) and coverage (JaCoCo), and
+against a ladder of increasingly demanding baselines that include what a
+practitioner would have without training anything: resampling the existing
+inputs, or fitting a classical density estimate to them.
 
-1. **Perfis de cobertura → preditor de testabilidade (E1, E2, E4).** A rede
-   sintetiza perfis estruturais de *suites* do *benchmark* SF110 (111
-   projetos) para aumentar o treino de um preditor de testabilidade, validado
-   *leave-projects-out*; o preditor guia a seleção de classes para o PIT e a
-   curadoria do conjunto de mutadores. Validação externa no Defects4J.
-2. **Entradas de teste → *suites* JUnit medidas por mutação (E3).** A rede
-   gera valores de entrada concretos para uma classe sob teste; um oráculo de
-   regressão fixa o resultado esperado como literal; a *suite* emitida é
-   medida com JaCoCo e PIT contra `RANDOM`, `CORPUS` (reamostragem), `KDE` e
-   as *suites* manual e EvoSuite. Dois alvos: `MathOperations` (12 dimensões)
-   e `ArithmeticUtils` do Commons Math (2 dimensões).
+**In short.** One WGAN-GP core is used in two roles. Synthesizing *coverage
+profiles* to augment a testability predictor does not help; collecting more
+real data does. Synthesizing the *inputs* that tests execute does help: the
+generated inputs beat uniform sampling in every seed of both targets, and beat
+resampling of the corpus when training inputs are scarce. What limits the
+gains is the input encoding rather than the generator.
 
-## Resultados
+## The two roles
 
-### Linha 1 — SF110 (E2) e Defects4J (E4)
+```
+                    ┌───────────────────────┐
+ coverage profiles ─▶      WGAN-GP core     ├─▶ synthetic profiles ─▶ testability predictor
+ (SF110 classes)    │ critic + grad. penalty│
+ input corpus      ─▶                       ├─▶ inputs ─▶ oracle on original code ─▶ JUnit + PIT
+ (existing tests)   └───────────────────────┘
+```
 
-| Métrica | *Baseline* | `v8_curated` | *Merged* |
-|---|---|---|---|
-| Projetos com sucesso | 67 | 69 | **80** |
-| *Weighted mutation score* | 16,73 % | **49,74 %** | 45,20 % |
-| *Weighted test strength* | 63,25 % | **76,63 %** | 73,39 % |
-| Projetos com *score* ≥ 70 % | 4 | 13 | 14 |
+1. **Coverage profiles → testability predictor.** The network synthesizes
+   structural profiles of SF110 classes (111 projects) to augment a random
+   forest that predicts, from 15 structural features, whether generated tests
+   will reach a useful mutation score. Validated across projects
+   (`GroupKFold`), and transferred to Defects4J without retraining.
+2. **Test inputs → JUnit suites measured by mutation.** The network generates
+   concrete input values for a class under test; a regression oracle runs each
+   input once on the original code and writes the result as a literal
+   expected value; the emitted suite is measured with JaCoCo and PIT against
+   `RANDOM`, `CORPUS` (resampling) and `KDE`, with the human-written and
+   EvoSuite suites as reference points. Two targets: `MathOperations`
+   (12-dimensional encoding, 114 mutants) and `ArithmeticUtils` from Apache
+   Commons Math 3.6.1 (2-dimensional encoding, 210 mutants).
 
-- Preditor de testabilidade: AUC *cross-project* **0,752** no SF110 (1 638
-  classes, 70 projetos), contra 0,745 de uma regressão logística sobre as
-  mesmas 15 *features*.
-- Aumentação sintética do preditor: **não robusta** — +0,026 de AUC numa
-  *seed*, +0,002 ± 0,013 em cinco. O que resolveu a escassez foi recolher mais
-  dados reais (532 → 1 638 classes).
-- Defects4J, sem retreino: AUC **0,360**. O sinal que o preditor aprende só
-  existe em *benchmarks* estruturalmente heterogéneos.
+## Main results
 
-### Linha 2 — geração de entradas de teste (E3)
+### Role 1: testability predictor
 
-Médias sobre 12 *seeds* (11 no segundo alvo), corpus completo, 114 mutações
-no alvo 1 e 210 no alvo 2. Cobertura de linha e de ramo por JaCoCo, *mutation
-score* por PIT:
+| setting | AUC |
+|---|---|
+| SF110, 1 638 classes from 70 projects, real data only | **0.752** |
+| + synthetic profiles, five seeds (on an earlier 27-project extraction) | +0.002 ± 0.013 |
+| Defects4J, 249 classes, no retraining | 0.360 |
 
-| braço | `MathOperations` linha / ramo / *mut.* | `ArithmeticUtils` linha / ramo / *mut.* |
+The generator learns the profiles faithfully (W1 = 0.056, no mode collapse),
+but a description of a test does not teach the predictor anything the real
+data had not. Growing the dataset from 532 to 1 638 real classes raised AUC
+from 0.63 to 0.752, about sixty times the mean synthetic gain.
+
+### Role 2: generated test inputs
+
+Means over 12 seeds (11 on the second target), full corpus. Line / branch
+coverage (JaCoCo) and mutation score (PIT), in %:
+
+| variant | `MathOperations` line / branch / mut. | `ArithmeticUtils` line / branch / mut. |
 |---|---|---|
-| `MANUAL` | 99,1 / 97,9 / 92,1 % | — |
-| `CORPUS` | 90,8 / 90,3 / **82,2 %** | 65,3 / 68,5 / **63,6 %** |
-| `WGAN` | 89,6 / 87,9 / 78,7 % | 56,9 / 60,1 / 57,3 % |
-| `KDE` | 89,0 / 86,6 / 76,5 % | 63,4 / 66,7 / 62,3 % |
-| `RANDOM` | 86,9 / 82,7 / 71,6 % | 50,0 / 50,0 / 47,6 % |
-| `EVOSUITE` | 73,4 / 67,0 / 61,4 % | — |
+| `MANUAL` | 99.1 / 97.9 / 92.1 | — |
+| `CORPUS` | 90.8 / 90.3 / **82.2** | 65.3 / 68.5 / **63.6** |
+| `WGAN` | 89.6 / 87.9 / 78.7 | 56.9 / 60.1 / 57.3 |
+| `KDE` | 89.0 / 86.6 / 76.5 | 63.4 / 66.7 / 62.3 |
+| `RANDOM` | 86.9 / 82.7 / 71.6 | 50.0 / 50.0 / 47.6 |
+| `EVOSUITE` | 73.4 / 67.0 / 61.4 | — |
 
-- Sobre amostragem uniforme a rede ganha em *mutation score* **+7,02 pp**
-  (12/12 *seeds*, Holm 0,0020) e **+9,70 pp** (11/11, Holm 0,0029), e em
-  cobertura de ramo **+5,23 pp** e **+10,12 pp** (também unânimes e
-  significativas). Contra a reamostragem do *corpus* completo, perde nas três
-  métricas.
-- **Regime de poucos dados**: com 18 entradas de treino a relação inverte-se
-  nos dois alvos — a rede bate a reamostragem por +3,73 pp e +4,56 pp de
-  *mutation score*. No alvo 1 a inversão dá-se sem diferença de cobertura
-  (todos os braços do corpus entre 88 e 91 % de linha em todas as frações): a
-  vantagem é de valores, não de alcance. No alvo 2 estende-se à cobertura de
-  ramo (+4,17 pp, Holm 0,013). Sobre o KDE só ganha em 12 dimensões (o
-  estimador fica mal condicionado); em 2 dimensões o KDE ganha à rede. A
-  contribuição adversarial é condicional ao regime de dados e à
-  dimensionalidade da codificação.
-- **O limite é a codificação, não o gerador**: mudar só a normalização
-  (escalonamento logarítmico com sinal) vale **+16,7 pp** no segundo alvo;
-  prolongar o treino por um fator de sete vale 2,85 pp; condicionar o gerador
-  vale 0.
+- **Over uniform sampling**, the WGAN-GP raises the mutation score by
+  **+7.02 pp** (12/12 seeds, Holm-corrected p = 0.0020) and **+9.70 pp**
+  (11/11, p = 0.0029).
+- **With the full corpus**, resampling the corpus is better on both targets.
+- **With scarce data the ranking inverts.** With 18 training inputs, the
+  WGAN-GP beats resampling by +3.73 pp and +4.56 pp. Resampling 18 inputs
+  yields 17 distinct values in 200 draws; the generator yields 176, close to
+  the real distribution. Against KDE it wins only with the 12-dimensional
+  encoding; in two dimensions, 18 points are enough for a stable density
+  estimate and KDE wins.
+- **The limit is the encoding, not the generator.** On the first target the
+  WGAN-GP and resampling share the same ceiling (94 of 114 mutants in every
+  mutator class); the gap is one of consistency. On the second, changing only
+  the input normalization (signed logarithm) moved the score by **+16.7 pp**,
+  against +2.85 pp for seven times longer training and +0.37 pp (not
+  significant) for conditioning the generator.
 
-Todas as medições que sustentam estes números estão em [`results/`](results/),
-com o comando que reproduz cada tabela.
+## Where each result comes from
 
-## Estrutura do repositório
+Every number above is recomputed from versioned measurements, without
+repeating any experiment:
+
+| result | data | command |
+|---|---|---|
+| Role 1: predictor AUC, model ladder | `results/predictor/` | see [`results/predictor/README.md`](results/predictor/README.md) |
+| Role 2, target 1: ladder, coverage, paired tests | `results/task5/results_114_e2000.csv` | `python python/scripts/analyze_task5_results.py --results results/task5/results_114_e2000.csv` |
+| Role 2, target 1: ceiling and consistency | `results/task5/results_114_e2000_by_mutator.csv` | `python python/scripts/analyze_task5_ceiling.py --by-mutator results/task5/results_114_e2000_by_mutator.csv` |
+| Role 2, target 1: low-data regime | `results/task5/results_114_frac*.csv` | `python python/scripts/analyze_task5_lowdata.py --full results/task5/results_114_e2000.csv --fracs "0.15:results/task5/results_114_frac15.csv,0.30:results/task5/results_114_frac30_full.csv,0.60:results/task5/results_114_frac60.csv"` |
+| Role 2, target 1: training length, conditioning | `results/task5/results_114_e300_full.csv`, `results_114_cond.csv` | `python python/scripts/analyze_task5_conditional.py` (see [`results/README.md`](results/README.md)) |
+| Role 2, target 2: ladder and low-data regime | `results/task5b/results_arith_final.csv`, `results/task5b/frac069/` | `python python/scripts/analyze_task5_results.py --results results/task5b/results_arith_final.csv` |
+| Role 2, target 2: effect of the encoding | `results/task5b/gate_linear.csv`, `gate_log.csv` | direct reading (one paired run) |
+
+The full index, with the dissertation table each file supports, is in
+[`results/README.md`](results/README.md).
+
+## Repository layout
 
 ```
 .
-├── README.md, LICENSE, NOTICE
 ├── pom.xml                      Maven: JUnit 5, JaCoCo, PIT 1.15.2, EvoSuite
-├── requirements.txt             Dependências Python (PyTorch, scikit-learn, SciPy)
-├── src/main/java/dataloader/    Classes sob teste: MathOperations, ArithmeticUtils (Apache 2.0, ver NOTICE)
+├── requirements.txt             Python dependencies (PyTorch, scikit-learn, SciPy)
+├── src/main/java/dataloader/    Classes under test: MathOperations, ArithmeticUtils (Apache 2.0, see NOTICE)
 ├── src/test/java/
-│   ├── dataloader/              Suites manual e EvoSuite; as suites geradas são reescritas por seed (gitignored)
-│   ├── tools/                   OracleRunner / ArithmeticOracleRunner (fora do pacote mutado, de propósito)
-│   └── corpus/                  Instrumentação em execução para extrair o corpus do segundo alvo
-├── corpus_sources/              Cópias intactas da classe e suite originais do Commons Math (para diff)
+│   ├── dataloader/              Human-written and EvoSuite suites; generated suites are rewritten per seed (git-ignored)
+│   ├── tools/                   Oracle runners, outside the mutated package on purpose
+│   └── corpus/                  Runtime instrumentation that records the second target's corpus
+├── corpus_sources/              Untouched copies of the original Commons Math class and suite (for diff)
 ├── python/
-│   ├── config.py, model.py, utils.py, junit_datasets.py, sf110_lib.py
-│   ├── data/                    Dataset de perfis de cobertura (733 registos brutos, 398 após limpeza estrita)
-│   ├── scripts/                 Pipeline (ver abaixo); archive/ guarda scripts substituídos
+│   ├── model.py, utils.py       WGAN-GP generator, critic and training loop
+│   ├── config.py, junit_datasets.py, sf110_lib.py
+│   ├── scripts/                 Pipelines and analyses (below); archive/ keeps superseded scripts
 │   └── tests/                   pytest
-├── results/                     Medições finais de E3, indexadas por tabela da tese
-├── docs/                        Metodologia e documentação das experiências
-└── outputs/                     Execuções (gitignored, excepto os dois relatórios PDF)
+├── results/                     Final measurements, indexed by table
+└── docs/                        Methodology and experiment notes (Portuguese)
 ```
 
-Scripts principais de `python/scripts/`:
+Main scripts in `python/scripts/`:
 
-| linha | script | papel |
+| role | script | purpose |
 |---|---|---|
-| 1 | `train_optimized.py`, `wgan_multi_seed.py` | treino da WGAN-GP sobre perfis; estudo de robustez (E1) |
-| 1 | `extract_sf110_full.py`, `run_sf110_mutation_testing.py` | extração do SF110 e campanhas PIT |
-| 1 | `build_bridge_dataset.py`, `train_testability_predictor.py`, `predictor_baselines.py` | preditor de testabilidade e escada de modelos |
-| 1 | `wgan_augmented_predictor.py`, `fidelity_check.py`, `bootstrap_score_ci.py` | aumentação sintética, fidelidade *hold-out*, IC por *bootstrap* |
-| 1 | `guided_class_selector.py`, `merge_runs.py`, `generate_results_pdf.py` | seleção guiada, fusão de campanhas, relatório |
-| 1 | `run_defects4j_mutation_testing.py`, `run_defects4j_coverage.py`, `score_defects4j_with_sf110_model.py` | validação *cross-benchmark* (E4) |
-| 2 | `extract_test_input_corpus.py` | *corpus* de entradas (literais; ou `--from-runtime-csv` para instrumentação) |
-| 2 | `generate_test_inputs_wgan.py` | treino e geração; constrói os quatro braços (`WGAN`, `RANDOM`, `CORPUS`, `KDE`) |
-| 2 | `emit_junit_from_oracle.py` | oráculo → *suite* JUnit 5 com asserções literais |
-| 2 | `run_task5_experiment.py`, `task5b_resume.py` | uma medição completa por *seed* (JaCoCo + PIT); executor retomável |
-| 2 | `analyze_task5_results.py`, `analyze_task5_ceiling.py`, `analyze_task5_conditional.py`, `analyze_task5_lowdata.py` | comparações emparelhadas com Holm; teto; ablações; poucos dados |
+| 1 | `extract_sf110_full.py`, `run_sf110_mutation_testing.py`, `extract_class_metrics.py` | SF110 extraction, PIT campaigns, structural features |
+| 1 | `build_bridge_dataset.py`, `train_testability_predictor.py`, `predictor_baselines.py` | predictor dataset, predictor, model ladder |
+| 1 | `wgan_augmented_predictor.py`, `fidelity_check.py` | synthetic augmentation per fold, hold-out fidelity |
+| 1 | `run_defects4j_mutation_testing.py`, `score_defects4j_with_sf110_model.py` | cross-benchmark validation |
+| 2 | `extract_test_input_corpus.py` | input corpus (from literals, or `--from-runtime-csv` for instrumentation) |
+| 2 | `generate_test_inputs_wgan.py` | training and generation; builds the four variants |
+| 2 | `emit_junit_from_oracle.py` | oracle → JUnit 5 suite with literal assertions |
+| 2 | `run_task5_experiment.py`, `task5b_resume.py` | one full measurement per seed (JaCoCo + PIT); resumable runner |
+| 2 | `analyze_task5_results.py`, `analyze_task5_ceiling.py`, `analyze_task5_conditional.py`, `analyze_task5_lowdata.py` | paired comparisons with Holm; ceiling; ablations; low-data regime |
 
-## Reprodução
-
-### Ambiente
+## Reproducing
 
 ```bash
 pip install -r requirements.txt
-mvn clean test          # compila, corre as suites e o PIT sobre o caso controlado
+mvn clean test                       # compiles, runs the suites and PIT on the controlled case
+python -m pytest python/tests/ -q    # Python tests
 ```
 
-Java 11 (`--release 11`), Maven 3, Python 3.11. Todas as experiências correram
-em CPU.
+Java 11 or later, Maven 3, Python 3.11. All experiments ran on CPU.
 
-### Linha 2 — uma medição de E3
+One measurement of role 2 (training, oracle, suite emission, JaCoCo and PIT)
+takes about 20 minutes per seed on a laptop:
 
 ```bash
-# alvo 1, 12 seeds, 2000 épocas (~20 min por seed)
-python python/scripts/run_task5_experiment.py --target mathops --base-seed 42 --seeds 12 --epochs 2000 \
-    --out outputs/task5/results.csv
+# target 1, 12 seeds, 2000 epochs
+python python/scripts/run_task5_experiment.py --target mathops --base-seed 42 --seeds 12 --epochs 2000
 
-# alvo 2, executor retomável (sobrevive a reinícios; funde no fim)
+# target 2, resumable runner (survives restarts, merges at the end)
 python python/scripts/task5b_resume.py
 
-# regime de poucos dados (todos os braços restritos ao mesmo subconjunto)
+# low-data regime: every variant restricted to the same subset
 python python/scripts/run_task5_experiment.py --target mathops --corpus-frac 0.15 --base-seed 42 --seeds 12 --epochs 2000
 ```
 
-Cada execução começa por `mvn clean`: o PIT tem de mutar o *bytecode* que a
-*build* produz, e um servidor de linguagem Java aberto no editor pode
-compilar para o mesmo diretório com outro JDK e alterar a população de
-mutantes (ver `docs/TAREFA5_GAN_TEST_DATA.md`, §4.2). Os executores abortam
-se a população mudar a meio.
+Every run starts with `mvn clean` and aborts if the number of mutants changes:
+an IDE language server compiling into `target/` with a different JDK once
+changed the mutant population from 114 to 118 (see
+[`docs/TAREFA5_GAN_TEST_DATA.md`](docs/TAREFA5_GAN_TEST_DATA.md), §4.2).
 
-As análises correm sobre `results/` sem repetir nenhuma medição — ver
-[`results/README.md`](results/README.md).
+Role 1 from scratch requires the SF110 distribution and takes hours; the step
+by step procedure is in
+[`docs/WGAN_TESTABILITY_METHODOLOGY.md`](docs/WGAN_TESTABILITY_METHODOLOGY.md).
+Defects4J requires a Unix environment (it ran on WSL2), see
+[`docs/DEFECTS4J_CROSS_BENCHMARK.md`](docs/DEFECTS4J_CROSS_BENCHMARK.md).
 
-### Linha 1 — campanha SF110
+## Dissertation version
 
-```bash
-python python/scripts/extract_sf110_full.py
-python python/scripts/run_sf110_mutation_testing.py \
-    --sf110-root python/data/raw/evosuite/sf110/extracted/SF110-20130704-src \
-    --test-mode both --output-root outputs/mutation_experiments/sf110_full111 \
-    --pit-version 1.7.3 --retry-oom --retry-compile
-python python/scripts/analyze_class_level.py --results-dir outputs/mutation_experiments/sf110_full111 \
-    --export outputs/mutation_experiments/class_level_dataset_111.csv
-python python/scripts/extract_class_metrics.py \
-    --sf110-root python/data/raw/evosuite/sf110/extracted/SF110-20130704-src \
-    --output outputs/mutation_experiments/class_structural_metrics_111.csv
-python python/scripts/build_bridge_dataset.py
-python python/scripts/train_testability_predictor.py --model rf \
-    --model-out outputs/mutation_experiments/testability_model_111.json
-python python/scripts/guided_class_selector.py --output-dir outputs/mutation_experiments/guided_targets_v3 \
-    --drop-threshold 0.2 --preserve-coverage 0.3 --uncertain-threshold 0.5 --uncertain-coverage 0.1
-python python/scripts/run_sf110_mutation_testing.py \
-    --sf110-root python/data/raw/evosuite/sf110/extracted/SF110-20130704-src \
-    --test-mode both --output-root outputs/mutation_experiments/sf110_v8_curated \
-    --guided-targets-dir outputs/mutation_experiments/guided_targets_v3 \
-    --mutators "CONDITIONALS_BOUNDARY,NEGATE_CONDITIONALS,MATH,INCREMENTS,INVERT_NEGS,RETURN_VALS,EMPTY_RETURNS,FALSE_RETURNS,TRUE_RETURNS,NULL_RETURNS,PRIMITIVE_RETURNS" \
-    --pit-version 1.7.3 --retry-oom --retry-compile
-```
+The tag [`tese-submetida`](https://github.com/GoncaloPires19/SoftwareTestingUsingWGANS/tree/tese-submetida) marks the state of the
+repository when the dissertation was submitted (14 October 2026). Later
+commits only add documentation and data files; no measurement changed.
 
-A campanha completa sobre os 111 projetos demora horas e exige o SF110
-extraído; o procedimento passo a passo está em
-`docs/WGAN_TESTABILITY_METHODOLOGY.md`. O Defects4J exige um ambiente Unix
-(correu em WSL2) — ver `docs/DEFECTS4J_CROSS_BENCHMARK.md`.
+## License
 
-## Testes
-
-```bash
-mvn test                            # Java
-python -m pytest python/tests/ -q   # Python
-```
-
-## Documentação
-
-- [`docs/TAREFA5_GAN_TEST_DATA.md`](docs/TAREFA5_GAN_TEST_DATA.md) — desenho e resultados de E3, incluindo as duas armadilhas de integridade
-- [`docs/WGAN_TESTABILITY_METHODOLOGY.md`](docs/WGAN_TESTABILITY_METHODOLOGY.md) — metodologia da linha 1
-- [`docs/DEFECTS4J_CROSS_BENCHMARK.md`](docs/DEFECTS4J_CROSS_BENCHMARK.md) — validação externa e infraestrutura
-- [`docs/DATA_SCHEMA.md`](docs/DATA_SCHEMA.md) — contrato dos datasets de perfis
-
-Nota sobre os perfis de cobertura: as colunas `methods`, `branches` e
-`statements` do dataset de perfis são tuplos numéricos derivados das *suites*,
-interpretados segundo `docs/DATA_SCHEMA.md`, e não métricas formais de
-cobertura do código de produção.
-
-## Licença
-
-MIT (ver `LICENSE`), excepto a classe `ArithmeticUtils` e as cópias em
-`corpus_sources/`, que são do Apache Commons Math sob Apache License 2.0
-(ver `NOTICE`).
+MIT (see [`LICENSE`](LICENSE)), except `ArithmeticUtils` and the copies in
+`corpus_sources/`, which come from Apache Commons Math under the Apache
+License 2.0 (see [`NOTICE`](NOTICE)).

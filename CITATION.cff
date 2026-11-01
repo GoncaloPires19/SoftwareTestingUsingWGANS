@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software or its data, please cite the dissertation below."
+title: "Software Testing Using WGAN-GP"
+type: software
+authors:
+  - family-names: Pires
+    given-names: Gonçalo
+license: MIT
+repository-code: "https://github.com/GoncaloPires19/SoftwareTestingUsingWGANS"
+keywords:
+  - generative adversarial networks
+  - WGAN-GP
+  - test data generation
+  - mutation testing
+  - testability prediction
+preferred-citation:
+  type: thesis
+  thesis-type: "MSc dissertation"
+  title: "Geração Inteligente de Dados de Teste de Software Utilizando Redes Adversariais Generativas (GANs)"
+  authors:
+    - family-names: Pires
+      given-names: Gonçalo
+  institution:
+    name: "Universidade de Évora"
+  year: 2026
+  languages:
+    - pt
