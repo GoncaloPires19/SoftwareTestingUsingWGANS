@@ -7,10 +7,9 @@
 
 *Versão portuguesa: [README.pt.md](README.pt.md).*
 
-Code, data and measurements of the MSc dissertation *Geração Inteligente de
-Dados de Teste de Software Utilizando Redes Adversariais Generativas (GANs)*
-(Intelligent Generation of Software Test Data Using Generative Adversarial
-Networks), Universidade de Évora, 2026.
+Code, data and measurements of an MSc dissertation (Universidade de Évora, 2026):
+*Geração Inteligente de Dados de Teste de Software Utilizando Redes Adversariais Generativas (GANs)*
+(*Intelligent Generation of Software Test Data Using Generative Adversarial Networks*).
 
 Can a generative adversarial network learn the distribution of the inputs
 that a project's existing unit tests use, and generate new inputs that detect

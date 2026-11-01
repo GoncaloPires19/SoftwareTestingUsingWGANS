@@ -2,8 +2,8 @@
 
 *English version: [README.md](README.md).*
 
-Código, dados e resultados da dissertação *Geração Inteligente de Dados de
-Teste de Software Utilizando Redes Adversariais Generativas (GANs)*
+Código, dados e resultados da dissertação
+*Geração Inteligente de Dados de Teste de Software Utilizando Redes Adversariais Generativas (GANs)*
 (Mestrado em Engenharia Informática, Universidade de Évora, 2026).
 
 A pergunta do trabalho é se uma rede adversarial (WGAN-GP) consegue aprender
