@@ -201,7 +201,7 @@ Todos os scripts aceitam `--resume` (checkpoint JSON) e `--max-bugs-per-project`
 ```bash
 # --- Defects4J (WSL obrigatório) ---
 export PATH=$PATH:$HOME/tools/defects4j/framework/bin
-cd "/mnt/c/.../SoftwareTestingUsingWGANS"
+cd "/mnt/c/<caminho-do-repositório>"
 
 # Mutation testing (Major)   — lento: ~horas, exige --workers 1 (OOM)
 tmux new-session -d -s d4j "python3 -u python/scripts/run_defects4j_mutation_testing.py \
